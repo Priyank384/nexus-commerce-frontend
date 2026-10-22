@@ -6,7 +6,7 @@ test("home redirects to /products", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/products$/);
   await expect(page.getByRole("heading", { name: "Products" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "NexusCommerce" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /plain thread/i })).toBeVisible();
 });
 
 test("login page renders", async ({ page }) => {

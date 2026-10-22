@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
+// The variable name has to be --font-sans: globals.css maps Tailwind's font-sans
+// utility onto it, so anything else silently leaves the body on Tailwind's default.
 const geistSans = Geist({
-  variable: "--font-geist-sans",
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
@@ -15,8 +18,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NexusCommerce",
-  description: "Spring Boot + Next.js commerce demo",
+  title: {
+    default: "Plain Thread",
+    template: "%s · Plain Thread",
+  },
+  description:
+    "Considered wardrobe staples in natural fibres — menswear and womenswear made to be worn for years.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -28,10 +35,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full flex flex-col">
         <Providers>
           <SiteHeader />
-          <main className="flex-1 container mx-auto px-4 py-6 max-w-6xl">{children}</main>
-          <footer className="border-t py-4 text-center text-xs text-muted-foreground">
-            NexusCommerce · Spring Boot backend · Next.js frontend
-          </footer>
+          <main className="shell-x flex-1 py-10">{children}</main>
+          <SiteFooter />
         </Providers>
       </body>
     </html>

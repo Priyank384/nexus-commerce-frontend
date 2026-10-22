@@ -1,6 +1,22 @@
-# NexusCommerce Frontend
+# Plain Thread — storefront
 
-Next.js 16 App Router frontend for the [NexusCommerce](../NexusCommerce) Spring Boot backend.
+Next.js 16 App Router frontend for the [NexusCommerce](../NexusCommerce) Spring Boot backend,
+branded as **Plain Thread**: a minimalist neutral apparel shop in the Everlane / COS
+register — warm paper, ink text, hairline edges, one typeface, no decorative colour.
+
+## Design system
+
+Every token lives in `src/app/globals.css`; primitives stay the stock shadcn ones so upgrades
+stay painless.
+
+| Token / utility | What it gives you |
+|-----------------|-------------------|
+| `--background`, `--foreground`, `--border`, `--muted*` | Warm neutral scale (oklch, near zero chroma). Garment photography is the only colour on the page. |
+| `--primary` | Ink. Used for the one action that matters per view ("Add to bag", "Sign up"). |
+| `--radius: 0.25rem` | Crisp, near-square controls rather than pill-shaped ones. |
+| `label-caps` | The brand's micro-label voice: uppercase, 0.6875rem, `0.14em` tracking. Nav, section eyebrows, table headings. |
+| `shell-x` | The single horizontal rhythm (`max-width: 90rem`, clamp padding) shared by header, page body and footer so edges always line up. |
+| `--font-sans` | Set by `Geist({ variable: "--font-sans" })` in `layout.tsx`. The name is load-bearing — `@theme inline` maps Tailwind's `font-sans` onto it, so a different variable silently drops the brand typeface. |
 
 ## Stack
 
@@ -64,7 +80,6 @@ npm run dev                # http://localhost:3000
 |-----|---------|-------|
 | `API_BASE_URL` | `http://localhost:3001` | Server-only; used by the BFF proxy and `/uploads` rewrite. Never prefixed `NEXT_PUBLIC_`. |
 | `PORT` | `3000` | `next dev` / `next start` listen port. |
-| `NEXT_PUBLIC_APP_NAME` | `NexusCommerce` | Client-visible label. |
 
 No backend secrets live here. The Spring `.env` (`JWT_SECRET`, MySQL creds, New Relic key)
 stays in the backend workspace.
@@ -85,7 +100,8 @@ src/
 │   └── providers.tsx   QueryClientProvider + sonner Toaster
 ├── components/
 │   ├── ui/             shadcn primitives
-│   └── site-header.tsx client header (session-aware, calls /api/auth/refresh on mount)
+│   ├── site-header.tsx client header (session-aware, calls /api/auth/refresh on mount)
+│   └── site-footer.tsx server footer (brand block + Shop/Account columns)
 ├── lib/
 │   ├── api/            backend.ts, client.ts (typed openapi-fetch + 401 retry), schema.d.ts
 │   └── auth/           jwt.ts (decode only), session.ts (Zustand memory store)

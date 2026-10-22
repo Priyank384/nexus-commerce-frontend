@@ -49,30 +49,32 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* PLAIN THREAD: warm paper, ink text, hairline stone edges. Deliberately
+     near chroma-free so the garment is the only thing competing for attention. */
+  --background: oklch(0.985 0.004 85);
+  --foreground: oklch(0.21 0.012 65);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.21 0.012 65);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --popover-foreground: oklch(0.21 0.012 65);
+  --primary: oklch(0.21 0.012 65);
+  --primary-foreground: oklch(0.985 0.004 85);
+  --secondary: oklch(0.96 0.006 85);
+  --secondary-foreground: oklch(0.28 0.012 65);
+  --muted: oklch(0.965 0.005 85);
+  --muted-foreground: oklch(0.53 0.012 70);
+  --accent: oklch(0.94 0.008 85);
+  --accent-foreground: oklch(0.24 0.012 65);
+  --destructive: oklch(0.55 0.19 25);
+  --border: oklch(0.9 0.006 85);
+  --input: oklch(0.9 0.006 85);
+  --ring: oklch(0.45 0.015 65);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.25rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -84,24 +86,24 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --background: oklch(0.17 0.008 68);
+  --foreground: oklch(0.96 0.004 85);
+  --card: oklch(0.215 0.008 68);
+  --card-foreground: oklch(0.96 0.004 85);
+  --popover: oklch(0.215 0.008 68);
+  --popover-foreground: oklch(0.96 0.004 85);
+  --primary: oklch(0.96 0.004 85);
+  --primary-foreground: oklch(0.2 0.008 68);
+  --secondary: oklch(0.27 0.008 68);
+  --secondary-foreground: oklch(0.96 0.004 85);
+  --muted: oklch(0.27 0.008 68);
+  --muted-foreground: oklch(0.72 0.01 75);
+  --accent: oklch(0.3 0.01 68);
+  --accent-foreground: oklch(0.96 0.004 85);
+  --destructive: oklch(0.7 0.19 22);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.6 0.01 75);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -115,6 +117,24 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* One horizontal rhythm for header, page body and footer so the edges line up
+   at every viewport without repeating a class string. */
+@utility shell-x {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 90rem;
+  padding-inline: clamp(1.25rem, 4vw, 3.5rem);
+}
+
+/* The brand's micro-label voice: uppercase, wide-tracked, small. Used for nav,
+   section eyebrows and table headings so every list reads the same way. */
+@utility label-caps {
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 @layer base {

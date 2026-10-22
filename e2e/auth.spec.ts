@@ -25,7 +25,7 @@ test("register → auto-login → header shows email → logout", async ({ page 
 
   // Sign out from the header.
   await header.getByRole("button", { name: /log out/i }).click();
-  await expect(header.getByRole("button", { name: /log in/i })).toBeVisible();
+  await expect(header.getByRole("link", { name: /log in/i })).toBeVisible();
 });
 
 test("login rejects wrong password with inline error", async ({ page }) => {
