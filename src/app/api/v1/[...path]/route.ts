@@ -4,7 +4,8 @@ import { backendUrl } from "@/lib/api/backend";
 // Generic BFF proxy for every Spring REST endpoint under /api/v1/**.
 // Browser traffic never hits Spring directly — this handler is the only hop.
 // We forward Authorization (bearer from the client's in-memory store) plus
-// any body/Content-Type the caller sent, and pipe the response back verbatim.
+// any body/Content-Type the caller sent, and pipe the response back with the
+// headers that no longer describe it removed (see RESPONSE_ONLY).
 // Multipart (image upload) works because we hand the original ReadableStream
 // to fetch() without touching the body.
 // Default Node runtime is used — `cacheComponents` disallows an explicit
@@ -22,6 +23,12 @@ const HOP_BY_HOP = new Set([
   "host",
   "content-length",
 ]);
+
+// Node's fetch transparently gunzips the upstream body, but Spring sets
+// `Content-Encoding: gzip` on anything over its 2 KB compression threshold.
+// Forwarding that header with an already-decoded body makes the browser abort
+// with ERR_CONTENT_DECODING_FAILED, so it never survives the proxy.
+const RESPONSE_ONLY = new Set(["content-encoding"]);
 
 function pickHeaders(req: Request): Headers {
   const out = new Headers();
@@ -70,7 +77,8 @@ async function proxy(req: NextRequest): Promise<Response> {
 
   const respHeaders = new Headers();
   upstream.headers.forEach((value, key) => {
-    if (!HOP_BY_HOP.has(key.toLowerCase())) respHeaders.set(key, value);
+    const lower = key.toLowerCase();
+    if (!HOP_BY_HOP.has(lower) && !RESPONSE_ONLY.has(lower)) respHeaders.set(key, value);
   });
   respHeaders.set("Cache-Control", "no-store");
 
