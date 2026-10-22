@@ -14,6 +14,8 @@ test("mobile menu opens and closes", async ({ page }) => {
   await header.getByRole("button", { name: "Open menu" }).click();
   // exact: "Men" is a substring of "Women".
   await expect(menu.getByRole("link", { name: "Men", exact: true })).toBeVisible();
+  // Subcategories are nested inline in the accordion, not behind a second tap.
+  await expect(menu.getByRole("link", { name: "T-Shirts" })).toBeVisible();
   await expect(menu.getByRole("link", { name: "Sign up" })).toBeVisible();
 
   await header.getByRole("button", { name: "Close menu" }).click();

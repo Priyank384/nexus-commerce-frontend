@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  // The dev-only build indicator sits bottom-left, on top of the footer's
+  // copyright line, so it lands in every shell screenshot.
+  devIndicators: false,
   turbopack: {
     rules: {
       "*.css": {

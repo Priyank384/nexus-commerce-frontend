@@ -5,8 +5,8 @@ const COLUMNS = [
     heading: "Shop",
     links: [
       { href: "/products", label: "All garments" },
-      { href: "/products?category=Men", label: "Menswear" },
-      { href: "/products?category=Women", label: "Womenswear" },
+      { href: "/products?category=men", label: "Menswear" },
+      { href: "/products?category=women", label: "Womenswear" },
     ],
   },
   {

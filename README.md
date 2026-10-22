@@ -17,6 +17,9 @@ stay painless.
 | `label-caps` | The brand's micro-label voice: uppercase, 0.6875rem, `0.14em` tracking. Nav, section eyebrows, table headings. |
 | `shell-x` | The single horizontal rhythm (`max-width: 90rem`, clamp padding) shared by header, page body and footer so edges always line up. |
 | `--font-sans` | Set by `Geist({ variable: "--font-sans" })` in `layout.tsx`. The name is load-bearing — `@theme inline` maps Tailwind's `font-sans` onto it, so a different variable silently drops the brand typeface. |
+| `--font-heading` | `Inter Tight`, same name coupling. `h1`–`h3` get it (plus `tracking-tight`, weight 500) from a base-layer rule, so headings never need a class. |
+| Theme | `next-themes` with `attribute="class"`: the `.dark` token block in `globals.css` and every `dark:` variant key off `<html class="dark">`. `ThemeToggle` cycles light → dark → system; `<html>` needs `suppressHydrationWarning` because the script rewrites the class before hydration. |
+| `EmptyState` | One voice for every "nothing here yet" surface — empty bag, wishlist, order history, a filter that matched nothing. |
 
 ## Stack
 
@@ -40,6 +43,13 @@ and one of:
    tokens live in a memory-only Zustand store — never in `localStorage`.
 2. **`/api/v1/[...path]`** — a generic proxy that forwards bearer, body, and query string to
    Spring's REST API.
+
+The proxy rewrites two response headers, because "pipe it through verbatim" is wrong here:
+Node's `fetch` transparently gunzips the upstream body, while Spring compresses anything over
+its 2 KB threshold. Forwarding `Content-Encoding: gzip` alongside an already-decoded body
+makes the browser abort with `ERR_CONTENT_DECODING_FAILED` — and it only bites on the large
+responses (category tree, a page of products with variants), which is why it stays hidden
+until a page finally needs real data. `Content-Length` is stripped for the same reason.
 
 Because the browser only ever sees this app's origin, **no CORS change on the backend is
 needed** under this pattern.
@@ -97,11 +107,14 @@ src/
 │   │   ├── auth/       login / refresh / logout route handlers (cookie BFF)
 │   │   └── v1/         generic /api/v1/[...path] proxy
 │   ├── layout.tsx      providers + header + footer
-│   └── providers.tsx   QueryClientProvider + sonner Toaster
+│   └── providers.tsx   QueryClientProvider + ThemeProvider (next-themes) + sonner Toaster
 ├── components/
 │   ├── ui/             shadcn primitives
-│   ├── site-header.tsx client header (session-aware, calls /api/auth/refresh on mount)
-│   └── site-footer.tsx server footer (brand block + Shop/Account columns)
+│   ├── site-header.tsx  client header: session-aware (calls /api/auth/refresh on mount) and
+│   │                    renders the category mega-menu from GET /api/v1/categories/tree
+│   ├── site-footer.tsx  server footer (brand block + Shop/Account columns)
+│   ├── theme-toggle.tsx light → dark → system cycle
+│   └── empty-state.tsx  shared "nothing here yet" block for bag / wishlist / orders / filters
 ├── lib/
 │   ├── api/            backend.ts, client.ts (typed openapi-fetch + 401 retry), schema.d.ts
 │   └── auth/           jwt.ts (decode only), session.ts (Zustand memory store)
@@ -114,9 +127,11 @@ next.config.ts          /uploads/:path* rewrite so product images resolve via th
 
 ## Route groups
 
-Route groups are placeholders in Phase 0 — features land in Phases 1–6:
+Route groups other than `(auth)` are still placeholders — features land in Phases 3–6:
 
-- **`(public)`** — no auth required.
+- **`(public)`** — no auth required. The header nav links categories by **slug**
+  (`/products?category=mens-denim`), because names repeat across roots (Men/Denim and
+  Women/Denim) and Spring resolves the filter with `findBySlugIgnoreCase`.
 - **`(auth)`** — signed-out entry points (login, register).
 - **`(user)`** — layout redirects to `/login` when the session is empty.
 - **`(admin)`** — layout additionally checks `user.role === "ADMIN"`.

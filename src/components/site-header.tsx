@@ -2,18 +2,36 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth/session";
+import { api } from "@/lib/api/client";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
-const SHOP_LINKS = [
-  { href: "/products", label: "Shop all" },
-  { href: "/products?category=Men", label: "Men" },
-  { href: "/products?category=Women", label: "Women" },
-];
+type NavNode = { id?: number; name?: string; slug?: string; children?: NavNode[] };
+
+/**
+ * The tree is public and cached server-side, so the nav can fetch it on every
+ * cold load without a bearer. Roots with no children are dropped: a mega-menu
+ * column that opens onto nothing is worse than no column.
+ */
+function useCategoryNav() {
+  const { data } = useQuery({
+    queryKey: ["category-tree"],
+    queryFn: async () => {
+      const { data: envelope } = await api.GET("/api/v1/categories/tree");
+      return (envelope?.data ?? []) as NavNode[];
+    },
+    staleTime: 10 * 60_000,
+    retry: 0,
+  });
+  return (data ?? []).filter((root) => (root.children?.length ?? 0) > 0);
+}
 
 export function SiteHeader() {
   const { user, hydrated, set, clear } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
+  const roots = useCategoryNav();
 
   // On first mount, ask the BFF to rehydrate the access token from the httpOnly
   // refresh cookie. If /api/auth/refresh 401s the store stays empty.
@@ -51,11 +69,44 @@ export function SiteHeader() {
           Plain Thread
         </Link>
 
-        <nav className="hidden md:flex items-center gap-6" aria-label="Primary">
-          {SHOP_LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className="label-caps text-muted-foreground hover:text-foreground">
-              {link.label}
-            </Link>
+        <nav className="hidden md:flex items-center gap-7" aria-label="Primary">
+          <Link href="/products" className="label-caps text-muted-foreground hover:text-foreground">
+            Shop all
+          </Link>
+          {roots.map((root) => (
+            <div key={root.id} className="group relative flex h-16 items-center">
+              <Link
+                href={`/products?category=${root.slug}`}
+                className="label-caps text-muted-foreground group-hover:text-foreground"
+              >
+                {root.name}
+              </Link>
+              {/* Hover-only, so it stays out of the tab order until focus enters it.
+                  role=group + label names the panel for assistive tech and lets the
+                  e2e spec target one root's children — "Denim" exists under both Men
+                  and Women. */}
+              <div
+                role="group"
+                aria-label={`${root.name} categories`}
+                className="invisible absolute top-full left-0 z-50 opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
+              >
+                <div className="w-[26rem] rounded-md border bg-background p-6">
+                  <p className="label-caps text-muted-foreground">{root.name}</p>
+                  <ul className="mt-3 grid grid-cols-2 gap-x-8 gap-y-2.5">
+                    {(root.children ?? []).map((child) => (
+                      <li key={child.id}>
+                        <Link
+                          href={`/products?category=${child.slug}`}
+                          className="text-sm underline-offset-4 hover:underline"
+                        >
+                          {child.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
           ))}
           {user && (
             <Link href="/cart" className="label-caps text-muted-foreground hover:text-foreground">
@@ -75,6 +126,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="ml-auto flex items-center gap-3">
+          <ThemeToggle className="flex h-9 w-9 items-center justify-center rounded-md border text-muted-foreground hover:text-foreground" />
           {hydrated && !user && (
             <nav className="hidden md:flex items-center gap-5" aria-label="Sign in">
               <Link href="/login" className="label-caps text-muted-foreground hover:text-foreground">
@@ -87,20 +139,20 @@ export function SiteHeader() {
           )}
           {user && (
             <div className="hidden md:flex items-center gap-3">
-              <span className="text-xs text-muted-foreground truncate max-w-[16rem]">{user.email}</span>
+              <span className="max-w-[16rem] truncate text-xs text-muted-foreground">{user.email}</span>
               <Button variant="outline" size="sm" onClick={onLogout}>
                 Log out
               </Button>
             </div>
           )}
-          {/* The e2e specs and the signed-out flash both key off these two states. */}
+          {/* Keeps the row from collapsing while the session rehydrates. */}
           {!hydrated && <span className="text-xs text-muted-foreground">&nbsp;</span>}
           <button
             type="button"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((open) => !open)}
-            className="md:hidden flex h-9 w-9 items-center justify-center rounded-md border"
+            className="flex h-9 w-9 items-center justify-center rounded-md border md:hidden"
           >
             <span aria-hidden className="text-lg leading-none">
               {menuOpen ? "×" : "≡"}
@@ -110,11 +162,33 @@ export function SiteHeader() {
       </div>
 
       {menuOpen && (
-        <nav aria-label="Mobile" className="md:hidden border-t bg-background shell-x flex flex-col gap-4 py-5">
-          {SHOP_LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className="label-caps" onClick={() => setMenuOpen(false)}>
-              {link.label}
-            </Link>
+        <nav aria-label="Mobile" className="shell-x flex flex-col gap-5 border-t bg-background py-6 md:hidden">
+          <Link href="/products" className="label-caps" onClick={() => setMenuOpen(false)}>
+            Shop all
+          </Link>
+          {roots.map((root) => (
+            <div key={root.id}>
+              <Link
+                href={`/products?category=${root.slug}`}
+                className="label-caps"
+                onClick={() => setMenuOpen(false)}
+              >
+                {root.name}
+              </Link>
+              <ul className="mt-2 space-y-1.5 border-l pl-4">
+                {(root.children ?? []).map((child) => (
+                  <li key={child.id}>
+                    <Link
+                      href={`/products?category=${child.slug}`}
+                      className="text-sm text-muted-foreground"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      {child.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
           {user && (
             <>
@@ -133,7 +207,7 @@ export function SiteHeader() {
           )}
           {user ? (
             <>
-              <span className="text-xs text-muted-foreground break-all">{user.email}</span>
+              <span className="break-all text-xs text-muted-foreground">{user.email}</span>
               <Button variant="outline" size="sm" className="w-fit" onClick={onLogout}>
                 Log out
               </Button>
