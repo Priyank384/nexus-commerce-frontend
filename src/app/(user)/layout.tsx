@@ -11,7 +11,10 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   const { user, hydrated } = useSession();
   useEffect(() => {
-    if (hydrated && !user) router.replace("/login");
+    if (hydrated && !user) {
+      const here = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
+      router.replace(`/login?next=${encodeURIComponent(here)}`);
+    }
   }, [hydrated, user, router]);
   if (!hydrated) return <div className="text-muted-foreground">Loading…</div>;
   if (!user) return null;

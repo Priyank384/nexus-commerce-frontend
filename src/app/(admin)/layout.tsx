@@ -11,8 +11,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, hydrated } = useSession();
   useEffect(() => {
     if (!hydrated) return;
-    if (!user) router.replace("/login");
-    else if (user.role !== "ADMIN") router.replace("/");
+    if (!user) {
+      const here = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/admin";
+      router.replace(`/login?next=${encodeURIComponent(here)}`);
+    } else if (user.role !== "ADMIN") {
+      router.replace("/");
+    }
   }, [hydrated, user, router]);
   if (!hydrated) return <div className="text-muted-foreground">Loading…</div>;
   if (!user || user.role !== "ADMIN") return null;
