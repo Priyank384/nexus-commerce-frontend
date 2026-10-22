@@ -47,8 +47,10 @@ describe("RegisterForm", () => {
   it("surfaces the 409 duplicate-email message inline", async () => {
     server.use(
       http.post("/api/v1/users", () =>
+        // Mirrors Spring's ApiResponse.error(ex.getMessage(), "Duplicate resource!"):
+        // the specific reason is in `error`, `message` is only the category label.
         HttpResponse.json(
-          { success: false, message: "User with email 'dupe@nexus.test' already exists!", error: "Duplicate", data: null },
+          { success: false, message: "Duplicate resource!", error: "User with email 'dupe@nexus.test' already exists!", data: null },
           { status: 409 },
         ),
       ),

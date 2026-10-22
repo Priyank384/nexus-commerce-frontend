@@ -18,7 +18,7 @@ export function cookieOptions(secure: boolean) {
 }
 
 export function stripRefresh<T extends { refreshToken?: string }>(body: T): Omit<T, "refreshToken"> {
-  const { refreshToken: _omit, ...rest } = body;
+  const { refreshToken, ...rest } = body;
   return rest;
 }
 

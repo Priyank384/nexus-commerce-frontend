@@ -117,6 +117,16 @@ whatever bearer the client has and lets 403/401 bubble up.
    ```
 3. Bearer injection + 401-refresh-retry are automatic.
 
+## Reading an error response
+
+Spring's `ApiResponse` puts the specific reason in `error` and only a category label in
+`message` — `{"message":"Forbidden!","error":"You can only access your own orders"}`. Go
+through `toAuthFailure(status, body)` in `src/lib/api/errors.ts`; it prefers `error` and
+maps the status to a `kind` the UI can branch on. Denials are **401** (missing, expired or
+revoked bearer; bad credentials) and **403** (signed in but not the owner, or not
+`ROLE_ADMIN`). Creates answer **201**, everything else including `DELETE` answers **200**
+with the envelope — no endpoint returns 204.
+
 ## Testing
 
 - Unit: `npm test` — MSW stubs the BFF (`/api/auth/*`) and any `/api/v1/*` paths a test hits.

@@ -15,12 +15,14 @@ import { useSession } from "@/lib/auth/session";
 import { toAuthFailure, type ApiEnvelope } from "@/lib/api/errors";
 
 // Reads `?next=` so the guards in (user)/(admin) can bounce back after login.
+const RATE_LIMIT_WINDOW_SECONDS = 60;
+
 function LoginFormInner() {
   const router = useRouter();
   const params = useSearchParams();
   const next = sanitizeNext(params.get("next"));
   const [serverAlert, setServerAlert] = useState<string | null>(null);
-  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const [lockoutSeconds, setLockoutSeconds] = useState<number | null>(null);
   const set = useSession((s) => s.set);
 
   const {
@@ -31,7 +33,7 @@ function LoginFormInner() {
 
   async function onSubmit(values: LoginValues) {
     setServerAlert(null);
-    if (lockedUntil && lockedUntil > Date.now()) {
+    if (lockoutSeconds) {
       setServerAlert("You are rate-limited. Wait until the countdown finishes.");
       return;
     }
@@ -56,7 +58,7 @@ function LoginFormInner() {
       if (failure.kind === "rate_limited") {
         // Backend rate limit is a fixed 1-minute window per IP. Show only the
         // countdown so the UI isn't repeating itself.
-        setLockedUntil(Date.now() + 60_000);
+        setLockoutSeconds(RATE_LIMIT_WINDOW_SECONDS);
         return;
       }
       setServerAlert(failure.message);
@@ -81,7 +83,9 @@ function LoginFormInner() {
           <AlertDescription>{serverAlert}</AlertDescription>
         </Alert>
       )}
-      {lockedUntil && <RateLimitCountdown until={lockedUntil} onExpire={() => setLockedUntil(null)} />}
+      {lockoutSeconds != null && (
+        <RateLimitCountdown seconds={lockoutSeconds} onExpire={() => setLockoutSeconds(null)} />
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
@@ -109,23 +113,21 @@ function LoginFormInner() {
   );
 }
 
-function RateLimitCountdown({ until, onExpire }: { until: number; onExpire: () => void }) {
-  const [now, setNow] = useState(() => Date.now());
+function RateLimitCountdown({ seconds, onExpire }: { seconds: number; onExpire: () => void }) {
+  const [remaining, setRemaining] = useState(seconds);
+
   useEffect(() => {
-    const id = setInterval(() => {
-      const current = Date.now();
-      setNow(current);
-      if (current >= until) {
-        clearInterval(id);
-        onExpire();
-      }
-    }, 1000);
+    const id = setInterval(() => setRemaining((r) => Math.max(0, r - 1)), 1000);
     return () => clearInterval(id);
-  }, [until, onExpire]);
-  const seconds = Math.max(0, Math.ceil((until - now) / 1000));
+  }, []);
+
+  useEffect(() => {
+    if (remaining === 0) onExpire();
+  }, [remaining, onExpire]);
+
   return (
     <p className="text-sm text-amber-600 mb-3">
-      Too many attempts — retry in <span className="tabular-nums font-medium">{seconds}s</span>
+      Too many attempts — retry in <span className="tabular-nums font-medium">{remaining}s</span>
     </p>
   );
 }

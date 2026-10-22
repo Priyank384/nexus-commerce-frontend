@@ -32,6 +32,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/products/variants/{variantId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update a variant
+         * @description Patch-style: only the fields present in the body change. Requires ROLE_ADMIN.
+         */
+        put: operations["update"];
+        post?: never;
+        /**
+         * Delete a variant
+         * @description Soft-deletes the variant. Refused for a product's last variant -- delete the product instead of leaving it unpurchasable. Requires ROLE_ADMIN.
+         */
+        delete: operations["delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{id}": {
         parameters: {
             query?: never;
@@ -98,10 +122,118 @@ export interface paths {
         get?: never;
         /**
          * Set product stock
-         * @description Overwrite a product's absolute stock level. Requires ROLE_ADMIN.
+         * @description Overwrite a product's absolute stock level. Requires ROLE_ADMIN. Only valid for a style with no variants or exactly one: a product with a size+colour grid answers 400 here, because the variants are the source of truth and an aggregate-only write is undone by the next resync. Restock those per variant via PUT /api/v1/products/variants/{variantId}.
          */
         put: operations["setStock"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/addresses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update one of my addresses
+         * @description Owner-only.
+         */
+        put: operations["update_1"];
+        post?: never;
+        /**
+         * Delete one of my addresses
+         * @description If it was a default, the oldest surviving address takes its place so checkout never ends up with none. Owner-only.
+         */
+        delete: operations["delete_1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/addresses/{id}/default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Make an address the default
+         * @description Pass shipping, billing or both. Exactly one address holds each default, so the previous one is demoted. Owner-only.
+         */
+        put: operations["setDefault"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/wishlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get my default wishlist
+         * @description The list the storefront heart reads. Created empty on first access, and its items are resolved against the current catalogue, so a discontinued product disappears rather than rendering as a broken card.
+         */
+        get: operations["getMyWishlist"];
+        put?: never;
+        /**
+         * Create a named wishlist
+         * @description A second list (Honeymoon, Gifts). Names are unique per user.
+         */
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/wishlist/{id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add to one of my wishlists
+         * @description Owner-only.
+         */
+        post: operations["addTo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/wishlist/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add to my default wishlist
+         * @description A product can be saved once per list; adding it again with a different size+colour restates the existing line instead of duplicating it. Owner-only.
+         */
+        post: operations["addToDefault"];
         delete?: never;
         options?: never;
         head?: never;
@@ -170,6 +302,86 @@ export interface paths {
          * @description Add a new product in the catalogue. Admin only.
          */
         post: operations["createProduct"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/{productId}/variants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a variant to a product
+         * @description Creates one size+colour. The SKU is stored upper-cased and must be unique, and the size+colour pair must not already exist on the product. Stock set here is what the variant is sold with; the product's aggregate follows. Requires ROLE_ADMIN.
+         */
+        post: operations["create_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/razorpay/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Razorpay webhook
+         * @description Server-to-server payment events. Requires no user token; verified by the X-Razorpay-Signature HMAC (a missing or forged signature is a caller-auth failure and answers 401) and configured to return 2xx even for unknown orders so the gateway stops retrying.
+         */
+        post: operations["webhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/razorpay/orders/{orderId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start payment for an order
+         * @description Creates the Razorpay order for the caller's order total and returns the checkout ticket (key id, Razorpay order id and amount in paise). Repeat calls re-price the order and replace any earlier ticket.
+         */
+        post: operations["createPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/razorpay/orders/{orderId}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm a completed checkout
+         * @description Verifies the Razorpay signature over the payment and marks the order paid. Safe to call twice: an already-paid order returns its current status.
+         */
+        post: operations["verifyPayment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -344,6 +556,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/addresses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my saved addresses
+         * @description Checkout reads this to prefill the form. Owner-only.
+         */
+        get: operations["listMine"];
+        put?: never;
+        /**
+         * Save a new address
+         * @description The first address a user saves becomes both the shipping and billing default, so checkout works without the shopper having to choose. Owner-only.
+         */
+        post: operations["create_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cart/items/{id}": {
         parameters: {
             query?: never;
@@ -390,6 +626,26 @@ export interface paths {
          * @description Partial merge; either or both fields may be sent. The last active admin cannot be disabled. Requires ROLE_ADMIN.
          */
         patch: operations["updateUser"];
+        trace?: never;
+    };
+    "/api/v1/wishlist/lists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my wishlists
+         * @description Every list the caller owns, with item counts but without items -- the account page shows these and fetches one by id.
+         */
+        get: operations["listMyWishlists"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/reviews/{id}": {
@@ -456,6 +712,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/products/{id}/variants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List a product's variants
+         * @description Every size and colour the product is sold in, with per-variant stock and price. Already included in /{id}/details; this is the lighter call for a PDP variant picker. Public.
+         */
+        get: operations["getVariants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/products/{id}/details": {
         parameters: {
             query?: never;
@@ -496,6 +772,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/products/slug/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a product by slug
+         * @description The product detail page route. A slug is stable across renames, which is why storefront URLs and the seeded catalogue use it instead of the numeric id. Public.
+         */
+        get: operations["getProductBySlug"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/products/search": {
         parameters: {
             query?: never;
@@ -504,10 +800,90 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Products with Category Name
-         * @description Fetches all the products from that specified category
+         * Browse the catalogue by facets
+         * @description The storefront listing and collection pages. Filter by gender, category slug (a parent slug matches its whole subtree), price range, sizes and colours; sort by id, price, rating, createdAt or title. Unknown facet values are rejected rather than answered with an empty page, which also keeps arbitrary strings from minting cache entries. Public; cached per facet combination.
+         */
+        get: operations["search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/facets/sizes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List every size on sale
+         * @description The facet values the size filter should offer, taken from the catalogue itself so the UI cannot present a size that matches nothing. Public.
+         */
+        get: operations["getAvailableSizes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/facets/colors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List every colour on sale
+         * @description The facet values the colour filter should offer. Public.
+         */
+        get: operations["getAvailableColors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/by-category/{categoryName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Products by category name
+         * @description Every product whose category name matches, case-insensitively. Where two categories share a name (Men/Denim and Women/Denim) both are included; use /search?categorySlug= for an exact branch. Public.
          */
         get: operations["findProductsByCategory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/orders/{orderId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get payment status of an order
+         * @description Owner-only. The storefront polls this after the checkout sheet closes, because the gateway webhook may settle the order first.
+         */
+        get: operations["paymentStatus"];
         put?: never;
         post?: never;
         delete?: never;
@@ -568,6 +944,26 @@ export interface paths {
          * @description Paged orders belonging to the authenticated caller.
          */
         get: operations["getMyOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/categories/tree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the category tree
+         * @description Top-level categories with their subcategories nested one level deep, in one response. This is what the storefront nav renders; the flat list endpoint stays for admin grids. Public; cached.
+         */
+        get: operations["getCategoryTree"];
         put?: never;
         post?: never;
         delete?: never;
@@ -640,6 +1036,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/wishlist/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a wishlist
+         * @description Soft-deletes the list and stops its items from being read. Owner-only.
+         */
+        delete: operations["delete_2"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/wishlist/{id}/items/{productId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove from one of my wishlists
+         * @description Owner-only.
+         */
+        delete: operations["removeFrom"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/wishlist/items/{productId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove from my default wishlist
+         * @description Owner-only.
+         */
+        delete: operations["removeFromDefault"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -648,12 +1104,19 @@ export interface components {
             title?: string;
             description?: string;
             price?: number;
+            compareAtPrice?: number;
             image?: string;
             rating?: number;
             /** Format: int32 */
             stock?: number;
             /** Format: int64 */
             categoryId?: number;
+            slug?: string;
+            brand?: string;
+            material?: string;
+            careInstructions?: string;
+            gender?: string;
+            isActive?: boolean;
         };
         ApiResponseGetProductResponseDto: {
             success?: boolean;
@@ -671,6 +1134,40 @@ export interface components {
             rating?: number;
             /** Format: int32 */
             stock?: number;
+            slug?: string;
+            brand?: string;
+            compareAtPrice?: number;
+        };
+        UpdateVariantRequestDto: {
+            sku?: string;
+            size?: string;
+            colorName?: string;
+            colorHex?: string;
+            priceDelta?: number;
+            imageUrl?: string;
+            /** Format: int32 */
+            stock?: number;
+        };
+        ApiResponseGetVariantResponseDto: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: components["schemas"]["GetVariantResponseDto"];
+        };
+        GetVariantResponseDto: {
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            productId?: number;
+            sku?: string;
+            size?: string;
+            colorName?: string;
+            colorHex?: string;
+            priceDelta?: number;
+            imageUrl?: string;
+            /** Format: int32 */
+            stock?: number;
+            price?: number;
         };
         OrderItemActionDto: {
             /** Format: int64 */
@@ -679,6 +1176,8 @@ export interface components {
             quantity?: number;
             /** @enum {string} */
             action: "ADD" | "REMOVE" | "INCREMENT" | "DECREMENT";
+            /** Format: int64 */
+            variantId?: number;
         };
         UpdateOrderRequestDto: {
             /** @enum {string} */
@@ -698,6 +1197,11 @@ export interface components {
             userId?: number;
             /** @enum {string} */
             orderStatus?: "PENDING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            totalPrice?: number;
+            /** @enum {string} */
+            paymentStatus?: "CREATED" | "PAID" | "FAILED";
+            /** Format: date-time */
+            paidAt?: string;
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */
@@ -713,9 +1217,18 @@ export interface components {
             productPrice?: number;
             productImage?: string;
             subTotal?: number;
+            /** Format: int64 */
+            variantId?: number;
+            variantSize?: string;
+            variantColorName?: string;
+            variantColorHex?: string;
         };
         CreateCategoryRequestDto: {
             name: string;
+            /** Format: int64 */
+            parentId?: number;
+            description?: string;
+            slug?: string;
         };
         ApiResponseGetCategoryResponseDto: {
             success?: boolean;
@@ -727,6 +1240,10 @@ export interface components {
             /** Format: int64 */
             id?: number;
             name?: string;
+            slug?: string;
+            description?: string;
+            /** Format: int64 */
+            parentId?: number;
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */
@@ -735,6 +1252,82 @@ export interface components {
         SetStockRequestDto: {
             /** Format: int32 */
             stock: number;
+        };
+        SaveAddressRequestDto: {
+            label?: string;
+            recipientName: string;
+            phone: string;
+            line1: string;
+            line2?: string;
+            city: string;
+            state: string;
+            postalCode: string;
+            country?: string;
+            defaultShipping?: boolean;
+            defaultBilling?: boolean;
+        };
+        ApiResponseGetAddressResponseDto: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: components["schemas"]["GetAddressResponseDto"];
+        };
+        GetAddressResponseDto: {
+            /** Format: int64 */
+            id?: number;
+            label?: string;
+            recipientName?: string;
+            phone?: string;
+            line1?: string;
+            line2?: string;
+            city?: string;
+            state?: string;
+            postalCode?: string;
+            country?: string;
+            defaultShipping?: boolean;
+            defaultBilling?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        CreateWishlistRequestDto: {
+            name: string;
+        };
+        ApiResponseGetWishlistResponseDto: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: components["schemas"]["GetWishlistResponseDto"];
+        };
+        GetWishlistItemResponseDto: {
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            productId?: number;
+            productTitle?: string;
+            productImage?: string;
+            price?: number;
+            /** Format: int64 */
+            variantId?: number;
+            sku?: string;
+            size?: string;
+            colorName?: string;
+            colorHex?: string;
+            /** Format: date-time */
+            addedAt?: string;
+        };
+        GetWishlistResponseDto: {
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+            /** Format: int32 */
+            itemCount?: number;
+            items?: components["schemas"]["GetWishlistItemResponseDto"][];
+        };
+        AddToWishlistRequestDto: {
+            /** Format: int64 */
+            productId: number;
+            /** Format: int64 */
+            variantId?: number;
         };
         CreateUserRequestDto: {
             name: string;
@@ -788,16 +1381,89 @@ export interface components {
             /** Format: date-time */
             createdAt?: string;
         };
+        CreateProductImageRequestDto: {
+            url: string;
+            /** Format: int32 */
+            position?: number;
+            alt?: string;
+        };
         CreateProductRequestDto: {
             title: string;
             description?: string;
             price: number;
+            compareAtPrice?: number;
             image?: string;
             /** Format: int64 */
             categoryId: number;
             rating: number;
             /** Format: int32 */
             stock?: number;
+            slug?: string;
+            brand?: string;
+            material?: string;
+            careInstructions?: string;
+            gender?: string;
+            isActive?: boolean;
+            variants?: components["schemas"]["CreateVariantRequestDto"][];
+            images?: components["schemas"]["CreateProductImageRequestDto"][];
+        };
+        CreateVariantRequestDto: {
+            sku: string;
+            size: string;
+            colorName: string;
+            colorHex: string;
+            priceDelta: number;
+            imageUrl?: string;
+            /** Format: int32 */
+            stock: number;
+        };
+        ApiResponseMapStringObject: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: {
+                [key: string]: Record<string, never>;
+            };
+        };
+        ApiResponseCreatePaymentResponseDto: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: components["schemas"]["CreatePaymentResponseDto"];
+        };
+        CreatePaymentResponseDto: {
+            /** Format: int64 */
+            orderId?: number;
+            razorpayOrderId?: string;
+            keyId?: string;
+            currency?: string;
+            totalPrice?: number;
+            /** Format: int64 */
+            amount?: number;
+        };
+        VerifyPaymentRequestDto: {
+            razorpayPaymentId: string;
+            razorpaySignature: string;
+        };
+        ApiResponseGetPaymentStatusResponseDto: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: components["schemas"]["GetPaymentStatusResponseDto"];
+        };
+        GetPaymentStatusResponseDto: {
+            /** Format: int64 */
+            orderId?: number;
+            /** @enum {string} */
+            orderStatus?: "PENDING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+            /** @enum {string} */
+            paymentStatus?: "CREATED" | "PAID" | "FAILED";
+            totalPrice?: number;
+            currency?: string;
+            razorpayOrderId?: string;
+            razorpayPaymentId?: string;
+            /** Format: date-time */
+            paidAt?: string;
         };
         CreateOrderRequestDto: {
             orderItems: components["schemas"]["OrderItemRequestDto"][];
@@ -807,12 +1473,16 @@ export interface components {
             productId: number;
             /** Format: int32 */
             quantity: number;
+            /** Format: int64 */
+            variantId?: number;
         };
         AddToCartRequestDto: {
             /** Format: int64 */
             productId: number;
             /** Format: int32 */
             quantity: number;
+            /** Format: int64 */
+            variantId?: number;
         };
         ApiResponseCartResponseDto: {
             success?: boolean;
@@ -831,6 +1501,14 @@ export interface components {
             /** Format: int32 */
             quantity?: number;
             lineTotal?: number;
+            /** Format: int64 */
+            variantId?: number;
+            sku?: string;
+            variantSize?: string;
+            variantColorName?: string;
+            variantColorHex?: string;
+            /** Format: int32 */
+            variantStock?: number;
         };
         CartResponseDto: {
             /** Format: int64 */
@@ -884,6 +1562,12 @@ export interface components {
             role?: "USER" | "ADMIN";
             enabled?: boolean;
         };
+        ApiResponseListGetWishlistResponseDto: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: components["schemas"]["GetWishlistResponseDto"][];
+        };
         ApiResponsePageResponseGetReviewResponseDto: {
             success?: boolean;
             message?: string;
@@ -920,11 +1604,25 @@ export interface components {
             totalPages?: number;
             last?: boolean;
         };
+        ApiResponseListGetVariantResponseDto: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: components["schemas"]["GetVariantResponseDto"][];
+        };
         ApiResponseGetProductWithDetailsResponseDto: {
             success?: boolean;
             message?: string;
             error?: string;
             data?: components["schemas"]["GetProductWithDetailsResponseDto"];
+        };
+        GetProductImageResponseDto: {
+            /** Format: int64 */
+            id?: number;
+            url?: string;
+            /** Format: int32 */
+            position?: number;
+            alt?: string;
         };
         GetProductWithDetailsResponseDto: {
             /** Format: int64 */
@@ -936,13 +1634,38 @@ export interface components {
             rating?: number;
             /** Format: int32 */
             stock?: number;
+            slug?: string;
+            brand?: string;
+            compareAtPrice?: number;
             category?: string;
+            /** Format: int64 */
+            categoryId?: number;
+            categorySlug?: string;
+            material?: string;
+            careInstructions?: string;
+            gender?: string;
+            isActive?: boolean;
+            variants?: components["schemas"]["GetVariantResponseDto"][];
+            images?: components["schemas"]["GetProductImageResponseDto"][];
         };
         ApiResponseListString: {
             success?: boolean;
             message?: string;
             error?: string;
             data?: string[];
+        };
+        ProductSearchRequestDto: {
+            gender?: string;
+            categorySlug?: string;
+            sizes?: string[];
+            colors?: string[];
+            minPrice?: number;
+            maxPrice?: number;
+            sort?: string;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
         };
         ApiResponsePageResponseGetProductWithDetailsResponseDto: {
             success?: boolean;
@@ -1018,6 +1741,21 @@ export interface components {
             totalPages?: number;
             last?: boolean;
         };
+        ApiResponseListGetCategoryNodeResponseDto: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: components["schemas"]["GetCategoryNodeResponseDto"][];
+        };
+        GetCategoryNodeResponseDto: {
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+            slug?: string;
+            description?: string;
+            /** Format: int64 */
+            parentId?: number;
+        };
         ApiResponsePageResponseGetUserResponseDto: {
             success?: boolean;
             message?: string;
@@ -1059,6 +1797,12 @@ export interface components {
             message?: string;
             error?: string;
             data?: components["schemas"]["AdminMetricsResponseDto"];
+        };
+        ApiResponseListGetAddressResponseDto: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: components["schemas"]["GetAddressResponseDto"][];
         };
     };
     responses: never;
@@ -1123,6 +1867,54 @@ export interface operations {
             header?: never;
             path: {
                 id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                variantId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateVariantRequestDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetVariantResponseDto"];
+                };
+            };
+        };
+    };
+    delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                variantId: number;
             };
             cookie?: never;
         };
@@ -1305,6 +2097,173 @@ export interface operations {
             };
         };
     };
+    update_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveAddressRequestDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetAddressResponseDto"];
+                };
+            };
+        };
+    };
+    delete_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    setDefault: {
+        parameters: {
+            query?: {
+                shipping?: boolean;
+                billing?: boolean;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetAddressResponseDto"];
+                };
+            };
+        };
+    };
+    getMyWishlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetWishlistResponseDto"];
+                };
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWishlistRequestDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetWishlistResponseDto"];
+                };
+            };
+        };
+    };
+    addTo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddToWishlistRequestDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetWishlistResponseDto"];
+                };
+            };
+        };
+    };
+    addToDefault: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddToWishlistRequestDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetWishlistResponseDto"];
+                };
+            };
+        };
+    };
     createUser: {
         parameters: {
             query?: never;
@@ -1419,6 +2378,106 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseGetProductResponseDto"];
+                };
+            };
+        };
+    };
+    create_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateVariantRequestDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetVariantResponseDto"];
+                };
+            };
+        };
+    };
+    webhook: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Razorpay-Signature"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+        };
+    };
+    createPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseCreatePaymentResponseDto"];
+                };
+            };
+        };
+    };
+    verifyPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyPaymentRequestDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetPaymentStatusResponseDto"];
                 };
             };
         };
@@ -1672,6 +2731,50 @@ export interface operations {
             };
         };
     };
+    listMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListGetAddressResponseDto"];
+                };
+            };
+        };
+    };
+    create_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveAddressRequestDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetAddressResponseDto"];
+                };
+            };
+        };
+    };
     removeItem: {
         parameters: {
             query?: never;
@@ -1764,6 +2867,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseGetUserResponseDto"];
+                };
+            };
+        };
+    };
+    listMyWishlists: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListGetWishlistResponseDto"];
                 };
             };
         };
@@ -1862,6 +2985,28 @@ export interface operations {
             };
         };
     };
+    getVariants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListGetVariantResponseDto"];
+                };
+            };
+        };
+    };
     getProductWithDetailsById: {
         parameters: {
             query?: never;
@@ -1904,12 +3049,32 @@ export interface operations {
             };
         };
     };
-    findProductsByCategory: {
+    getProductBySlug: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetProductWithDetailsResponseDto"];
+                };
+            };
+        };
+    };
+    search: {
         parameters: {
             query: {
-                categoryName: string;
-                page?: number;
-                size?: number;
+                query: components["schemas"]["ProductSearchRequestDto"];
             };
             header?: never;
             path?: never;
@@ -1924,6 +3089,93 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponsePageResponseGetProductWithDetailsResponseDto"];
+                };
+            };
+        };
+    };
+    getAvailableSizes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListString"];
+                };
+            };
+        };
+    };
+    getAvailableColors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListString"];
+                };
+            };
+        };
+    };
+    findProductsByCategory: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                categoryName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseGetProductWithDetailsResponseDto"];
+                };
+            };
+        };
+    };
+    paymentStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetPaymentStatusResponseDto"];
                 };
             };
         };
@@ -1994,6 +3246,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponsePageResponseGetOrderResponseDto"];
+                };
+            };
+        };
+    };
+    getCategoryTree: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListGetCategoryNodeResponseDto"];
                 };
             };
         };
@@ -2077,6 +3349,73 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseAdminMetricsResponseDto"];
+                };
+            };
+        };
+    };
+    delete_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    removeFrom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                productId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    removeFromDefault: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                productId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
                 };
             };
         };

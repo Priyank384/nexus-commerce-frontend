@@ -71,11 +71,12 @@ export function RegisterForm() {
       return;
     }
     if (res.status === 409) {
-      setServerAlert(body?.message ?? "An account with that email already exists.");
+      // Spring puts the specific reason in `error` and only a label in `message`.
+      setServerAlert(body?.error ?? "An account with that email already exists.");
       return;
     }
     if (!res.ok) {
-      setServerAlert(body?.message ?? `Registration failed (${res.status}).`);
+      setServerAlert(body?.error ?? body?.message ?? `Registration failed (${res.status}).`);
       return;
     }
 
