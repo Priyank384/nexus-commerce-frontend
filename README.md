@@ -1,36 +1,128 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NexusCommerce Frontend
 
-## Getting Started
+Next.js 16 App Router frontend for the [NexusCommerce](../NexusCommerce) Spring Boot backend.
 
-First, run the development server:
+## Stack
+
+- **Next.js 16.4.2** (App Router, Turbopack, `cacheComponents`, `partialPrefetching`)
+- **React 19.3** + **TypeScript 5**
+- **Tailwind v4** + **shadcn/ui** primitives
+- **TanStack Query v5** for server state
+- **Zustand** for the client session store
+- **React Hook Form** + **Zod** for forms
+- **openapi-fetch** + **openapi-typescript** for a typed backend client
+- **Vitest** + **Testing Library** + **MSW** for unit/integration tests
+- **Playwright** for e2e
+
+## Architecture — Backend-for-Frontend (BFF)
+
+The browser never talks to Spring directly. Every API call is same-origin to this Next app
+and one of:
+
+1. **`/api/auth/{login,refresh,logout}`** — Next route handlers that set/clear an httpOnly
+   refresh-token cookie (`rc`, `Path=/api/auth`) and forward credentials to Spring. Access
+   tokens live in a memory-only Zustand store — never in `localStorage`.
+2. **`/api/v1/[...path]`** — a generic proxy that forwards bearer, body, and query string to
+   Spring's REST API.
+
+Because the browser only ever sees this app's origin, **no CORS change on the backend is
+needed** under this pattern.
+
+On 401 the typed client calls `/api/auth/refresh` once (single-flight), re-issues the
+original request with the new bearer, and only fails if refresh also fails.
+
+## Prereqs
+
+- Node 20+
+- Backend running on `http://localhost:3001` (see [../NexusCommerce/README.md](../NexusCommerce/README.md))
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
+npm install                # uses .npmrc legacy-peer-deps=true
+npm run dev                # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Script | What it does |
+|--------|--------------|
+| `npm run dev` | `next dev` (Turbopack) on port 3000 |
+| `npm run build` | Production build |
+| `npm start` | Serve production build |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run codegen` | Regenerate `src/lib/api/schema.d.ts` from a running backend's `/v3/api-docs`. Requires Spring on `API_BASE_URL` (default `http://localhost:3001`). |
+| `npm test` | Vitest once (jsdom + MSW) |
+| `npm run test:watch` | Vitest watch |
+| `npm run test:e2e` | Playwright against `next dev` and Spring on 3001 |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Env
 
-## Learn More
+| Var | Default | Notes |
+|-----|---------|-------|
+| `API_BASE_URL` | `http://localhost:3001` | Server-only; used by the BFF proxy and `/uploads` rewrite. Never prefixed `NEXT_PUBLIC_`. |
+| `PORT` | `3000` | `next dev` / `next start` listen port. |
+| `NEXT_PUBLIC_APP_NAME` | `NexusCommerce` | Client-visible label. |
 
-To learn more about Next.js, take a look at the following resources:
+No backend secrets live here. The Spring `.env` (`JWT_SECRET`, MySQL creds, New Relic key)
+stays in the backend workspace.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Layout
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── app/
+│   ├── (public)/       /, /products — browse without auth
+│   ├── (auth)/         /login, /register
+│   ├── (user)/         /cart, /orders — requires bearer
+│   ├── (admin)/        /admin — requires ROLE_ADMIN
+│   ├── api/
+│   │   ├── auth/       login / refresh / logout route handlers (cookie BFF)
+│   │   └── v1/         generic /api/v1/[...path] proxy
+│   ├── layout.tsx      providers + header + footer
+│   └── providers.tsx   QueryClientProvider + sonner Toaster
+├── components/
+│   ├── ui/             shadcn primitives
+│   └── site-header.tsx client header (session-aware, calls /api/auth/refresh on mount)
+├── lib/
+│   ├── api/            backend.ts, client.ts (typed openapi-fetch + 401 retry), schema.d.ts
+│   └── auth/           jwt.ts (decode only), session.ts (Zustand memory store)
+└── test/               setup.ts + mocks/handlers.ts + mocks/server.ts (MSW)
+e2e/                    Playwright specs
+playwright.config.ts    baseURL http://localhost:3000, spawns `npm run dev`
+vitest.config.ts        jsdom env, MSW server bootstraps in setup.ts
+next.config.ts          /uploads/:path* rewrite so product images resolve via the BFF
+```
 
-## Deploy on Vercel
+## Route groups
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Route groups are placeholders in Phase 0 — features land in Phases 1–6:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **`(public)`** — no auth required.
+- **`(auth)`** — signed-out entry points (login, register).
+- **`(user)`** — layout redirects to `/login` when the session is empty.
+- **`(admin)`** — layout additionally checks `user.role === "ADMIN"`.
+
+Guards are client-side UX only. Real authorization is enforced by Spring; the BFF forwards
+whatever bearer the client has and lets 403/401 bubble up.
+
+## Adding a new backend call
+
+1. Ensure Spring is running and hit `npm run codegen` — `schema.d.ts` refreshes.
+2. Use the typed client:
+   ```ts
+   const { data, error } = await api.GET("/api/v1/products/{id}", { params: { path: { id } } });
+   ```
+3. Bearer injection + 401-refresh-retry are automatic.
+
+## Testing
+
+- Unit: `npm test` — MSW stubs the BFF (`/api/auth/*`) and any `/api/v1/*` paths a test hits.
+- E2E: bring up the backend on `:3001`, then `npm run test:e2e`. Playwright spawns `next dev`
+  automatically and reuses it if already running.
+
+## Deploy
+
+Deferred to Phase 7. Vercel is the planned target.
