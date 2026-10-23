@@ -35,9 +35,10 @@ export async function forwardJson(
 ) {
   const res = await fetch(`${backendUrl()}${upstreamPath}`, {
     method: "POST",
+    // No Origin header: this is a server-to-server call, and the backend's CORS
+    // allowlist only names the storefront origin.
     headers: {
       "Content-Type": "application/json",
-      Origin: backendUrl(),
       ...extraHeaders,
     },
     body: JSON.stringify(body),

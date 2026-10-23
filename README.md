@@ -102,6 +102,7 @@ npm run dev                # http://localhost:3000
 |-----|---------|-------|
 | `API_BASE_URL` | `http://localhost:3001` | Server-only; used by the BFF proxy and `/uploads` rewrite. Never prefixed `NEXT_PUBLIC_`. |
 | `PORT` | `3000` | `next dev` / `next start` listen port. |
+| `NEXT_IMAGE_HOSTS` | empty | Comma-separated extra hostnames for `next/image` (production: the R2 public host). Read at build time. |
 
 No backend secrets live here. The Spring `.env` (`JWT_SECRET`, MySQL creds, New Relic key)
 stays in the backend workspace.
@@ -189,4 +190,11 @@ with the envelope — no endpoint returns 204.
 
 ## Deploy
 
-Deferred to Phase 7. Vercel is the planned target.
+Vercel, with the Spring backend on Render (see the backend repo's `DEPLOYMENT.md`).
+
+1. Import this repository into Vercel (framework preset **Next.js**, branch `main`).
+2. Set `API_BASE_URL` to the deployed API origin and `NEXT_IMAGE_HOSTS` to the R2 public
+   hostname (no scheme). Changing the image hosts needs a redeploy — remote patterns are
+   resolved at build time.
+3. Deploy. No backend secret lives in Vercel; the BFF cookie is httpOnly, `SameSite=Lax`
+   and `Secure` on HTTPS, and never leaves this origin.
