@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  images: {
+    // The seeded catalogue points at picsum placeholders; admin uploads are served from
+    // this app's own origin through the /uploads rewrite below, so they need no pattern.
+    remotePatterns: [{ protocol: "https", hostname: "picsum.photos" }],
+  },
   async rewrites() {
     const base = process.env.API_BASE_URL;
     if (!base) return [];

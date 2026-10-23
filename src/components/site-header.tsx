@@ -7,6 +7,7 @@ import { useSession } from "@/lib/auth/session";
 import { api } from "@/lib/api/client";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SiteSearch } from "@/components/site-search";
 
 type NavNode = { id?: number; name?: string; slug?: string; children?: NavNode[] };
 
@@ -126,6 +127,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="ml-auto flex items-center gap-3">
+          <SiteSearch className="hidden lg:flex" />
           <ThemeToggle className="flex h-9 w-9 items-center justify-center rounded-md border text-muted-foreground hover:text-foreground" />
           {hydrated && !user && (
             <nav className="hidden md:flex items-center gap-5" aria-label="Sign in">
@@ -163,6 +165,7 @@ export function SiteHeader() {
 
       {menuOpen && (
         <nav aria-label="Mobile" className="shell-x flex flex-col gap-5 border-t bg-background py-6 md:hidden">
+          <SiteSearch compact />
           <Link href="/products" className="label-caps" onClick={() => setMenuOpen(false)}>
             Shop all
           </Link>

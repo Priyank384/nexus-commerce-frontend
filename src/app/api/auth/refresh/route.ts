@@ -19,10 +19,11 @@ type RefreshData = {
 export async function POST(req: NextRequest) {
   const refreshToken = await currentRefreshToken();
   if (!refreshToken) {
-    return NextResponse.json(
-      { success: false, message: "No session", error: "Unauthorized", data: null },
-      { status: 401 },
-    );
+    // "You are not signed in" is the normal answer for an anonymous page view, and the header
+    // asks on every cold load. A 401 makes Chrome log a network error on every page of the
+    // storefront, which trains everyone to ignore the console; the token being absent is the
+    // signal callers already branch on. A cookie that exists but is stale still 401s below.
+    return NextResponse.json({ success: true, message: "No session", error: null, data: null });
   }
 
   const { res, parsed } = await forwardJson(req, "/api/v1/auth/refresh", { refreshToken });

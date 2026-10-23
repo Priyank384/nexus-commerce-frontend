@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { visit } from "./visit";
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
 test("the theme toggle repaints the shell", async ({ page }) => {
   // Pinned so "system" resolves predictably instead of following the runner.
   await page.emulateMedia({ colorScheme: "light" });
-  await page.goto("/products");
+  await visit(page, "/products");
 
   const html = page.locator("html");
   const toggle = page.getByRole("banner").getByRole("button", { name: /^Theme:/ });
@@ -27,7 +28,7 @@ test("the theme toggle repaints the shell", async ({ page }) => {
 
 test("the choice survives a reload", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" });
-  await page.goto("/products");
+  await visit(page, "/products");
   const toggle = page.getByRole("banner").getByRole("button", { name: /^Theme:/ });
   await toggle.click();
   await expect(page.locator("html")).toHaveClass(/dark/);

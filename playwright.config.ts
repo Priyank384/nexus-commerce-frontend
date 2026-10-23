@@ -5,10 +5,22 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
+  // One dev server, one Spring app, one login rate limiter: parallel workers only make the
+  // suite flaky, they do not make it faster.
+  workers: 1,
+  // Cold `next dev` compiles each route on its first request, and that lands inside a spec's
+  // own budget rather than in an assertion.
+  timeout: 60_000,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
+  globalSetup: "./e2e/warm-routes.ts",
+  expect: {
+    // A form submission here is a real server render, not a client route swap.
+    timeout: 10_000,
+  },
   use: {
     baseURL: "http://localhost:3000",
+    navigationTimeout: 45_000,
     trace: "on-first-retry",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
