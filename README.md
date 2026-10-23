@@ -33,6 +33,18 @@ stay painless.
 - **Vitest** + **Testing Library** + **MSW** for unit/integration tests
 - **Playwright** for e2e
 
+## What's built
+
+- **Storefront** — home, category listing with faceted search, product detail (colour/size
+  picker, gallery, reviews), bag drawer and `/cart`, wishlist, account hub (profile, addresses,
+  wishlist), multi-step checkout with Razorpay test mode, and order history/detail.
+- **Admin console** (`/admin`, `ROLE_ADMIN`) — dashboard (order pipeline, revenue, sold-out
+  count); category tree with create/edit/delete and `moveToTopLevel`; products with a
+  size×colour variant builder and a gallery (append, delete, reorder); orders with the
+  `PENDING → SHIPPED → DELIVERED` queue and a guarded cancel; inventory search with an
+  out-of-stock filter and per-variant stock adjustment; and a minimal user table with
+  search and enable/disable.
+
 ## Architecture — Backend-for-Frontend (BFF)
 
 The browser never talks to Spring directly. Every API call is same-origin to this Next app
@@ -102,7 +114,8 @@ src/
 │   ├── (public)/       /, /products — browse without auth
 │   ├── (auth)/         /login, /register
 │   ├── (user)/         /cart, /orders — requires bearer
-│   ├── (admin)/        /admin — requires ROLE_ADMIN
+├── (admin)/            /admin, /admin/products, /admin/categories, /admin/orders,
+│                      /admin/inventory, /admin/users — requires ROLE_ADMIN
 │   ├── api/
 │   │   ├── auth/       login / refresh / logout route handlers (cookie BFF)
 │   │   └── v1/         generic /api/v1/[...path] proxy
@@ -117,7 +130,11 @@ src/
 │   └── empty-state.tsx  shared "nothing here yet" block for bag / wishlist / orders / filters
 ├── lib/
 │   ├── api/            backend.ts, client.ts (typed openapi-fetch + 401 retry), schema.d.ts
-│   └── auth/           jwt.ts (decode only), session.ts (Zustand memory store)
+│   ├── auth/           jwt.ts (decode only), session.ts (Zustand memory store)
+│   ├── admin/          typed queries/mutations for products, categories, orders, users
+│   ├── catalog/        catalogue + product-detail queries and formatting
+│   ├── orders/         order queries and shared status/payment/date formatting
+│   └── …               cart, wishlist, reviews, addresses, checkout
 └── test/               setup.ts + mocks/handlers.ts + mocks/server.ts (MSW)
 e2e/                    Playwright specs
 playwright.config.ts    baseURL http://localhost:3000, spawns `npm run dev`
@@ -127,14 +144,13 @@ next.config.ts          /uploads/:path* rewrite so product images resolve via th
 
 ## Route groups
 
-Route groups other than `(auth)` are still placeholders — features land in Phases 3–6:
-
 - **`(public)`** — no auth required. The header nav links categories by **slug**
   (`/products?category=mens-denim`), because names repeat across roots (Men/Denim and
   Women/Denim) and Spring resolves the filter with `findBySlugIgnoreCase`.
 - **`(auth)`** — signed-out entry points (login, register).
 - **`(user)`** — layout redirects to `/login` when the session is empty.
-- **`(admin)`** — layout additionally checks `user.role === "ADMIN"`.
+- **`(admin)`** — layout additionally checks `user.role === "ADMIN"`. The shell renders the
+  admin nav; each screen talks only to endpoints Spring already gates with `ROLE_ADMIN`.
 
 Guards are client-side UX only. Real authorization is enforced by Spring; the BFF forwards
 whatever bearer the client has and lets 403/401 bubble up.
@@ -161,8 +177,15 @@ with the envelope — no endpoint returns 204.
 ## Testing
 
 - Unit: `npm test` — MSW stubs the BFF (`/api/auth/*`) and any `/api/v1/*` paths a test hits.
-- E2E: bring up the backend on `:3001`, then `npm run test:e2e`. Playwright spawns `next dev`
-  automatically and reuses it if already running.
+- E2E: bring up the backend on `:3001`, export the bootstrap-admin credentials, then run the suite.
+  Playwright spawns `next dev` automatically and reuses it if already running.
+
+  ```bash
+  set -a; source ../NexusCommerce/.env; set +a   # ADMIN_BOOTSTRAP_EMAIL / _PASSWORD
+  npm run test:e2e
+  ```
+
+  The live Razorpay specs skip themselves when `RAZORPAY_*` keys are absent.
 
 ## Deploy
 

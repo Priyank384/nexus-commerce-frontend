@@ -76,7 +76,8 @@ export function OrderDetail() {
   const justPaid = searchParams.get("paid") === "1" && order.paymentStatus === "PAID";
   const items = order.items ?? [];
   const subtotal = items.reduce((sum, item) => sum + (item.subTotal ?? 0), 0);
-  const payable = canPay(order);
+  // Admins can open any order here; only the shopper who owns it may settle it.
+  const payable = canPay(order) && order.userId === user?.id;
 
   async function onPay() {
     if (!order) return;

@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * Get Product using specific Id
-         * @description Fetches the specific product with the given Id.
+         * @description Fetches the specific product with the given Id. An unpublished draft is reported as 404.
          */
         get: operations["getProductById"];
         /**
@@ -70,7 +70,7 @@ export interface paths {
         get: operations["getOrderById"];
         /**
          * Update an order
-         * @description Owner or ROLE_ADMIN only. Changes status and/or applies ADD/REMOVE/INCREMENT/DECREMENT line-item actions. Blocked once DELIVERED or CANCELLED.
+         * @description Owner or ROLE_ADMIN only. An owner may apply ADD/REMOVE/INCREMENT/DECREMENT while the order is PENDING and unpaid; status changes and edits to a PAID order require ROLE_ADMIN. Status moves PENDING→SHIPPED→DELIVERED or PENDING→CANCELLED, and cancelling returns the reserved stock. Blocked once DELIVERED or CANCELLED.
          */
         put: operations["updateOrder"];
         post?: never;
@@ -98,7 +98,7 @@ export interface paths {
         get: operations["getCategoryById"];
         /**
          * Update a category
-         * @description Renames an existing category. Requires ROLE_ADMIN.
+         * @description Renames or reparents an existing category. Omit parentId to keep the current parent; send moveToTopLevel=true to detach it instead. Rejects cycles and duplicate names under the target parent. Requires ROLE_ADMIN.
          */
         put: operations["updateCategory"];
         post?: never;
@@ -125,6 +125,26 @@ export interface paths {
          * @description Overwrite a product's absolute stock level. Requires ROLE_ADMIN. Only valid for a style with no variants or exactly one: a product with a size+colour grid answers 400 here, because the variants are the source of truth and an aggregate-only write is undone by the next resync. Restock those per variant via PUT /api/v1/products/variants/{variantId}.
          */
         put: operations["setStock"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{id}/images/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Reorder the gallery
+         * @description Body lists every live image id exactly once, in the new display order. Position 0 becomes the thumbnail. Requires ROLE_ADMIN.
+         */
+        put: operations["reorderGallery"];
         post?: never;
         delete?: never;
         options?: never;
@@ -293,7 +313,7 @@ export interface paths {
         };
         /**
          * Get all products
-         * @description Fetches one page of the catalogue. Defaults to the first 20 products.
+         * @description Fetches one page of the published catalogue. Defaults to the first 20 products. Unpublished drafts are excluded; admins list them at /api/v1/admin/products.
          */
         get: operations["getAllProducts"];
         put?: never;
@@ -397,7 +417,7 @@ export interface paths {
         };
         /**
          * List all orders
-         * @description Paged list across all users. Requires ROLE_ADMIN.
+         * @description Paged list across all users, newest first. Requires ROLE_ADMIN.
          */
         get: operations["getAllOrders"];
         put?: never;
@@ -530,6 +550,26 @@ export interface paths {
          * @description Exchange email + password for a short-lived JWT bearer token and a single-use refresh token.
          */
         post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{id}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Append a gallery image
+         * @description Stores a PNG/JPEG/WebP up to 5 MB and appends it to the product's gallery after the current last position. Requires ROLE_ADMIN.
+         */
+        post: operations["appendGalleryImage"];
         delete?: never;
         options?: never;
         head?: never;
@@ -741,7 +781,7 @@ export interface paths {
         };
         /**
          * List a product's variants
-         * @description Every size and colour the product is sold in, with per-variant stock and price. Already included in /{id}/details; this is the lighter call for a PDP variant picker. Public.
+         * @description Every size and colour the product is sold in, with per-variant stock and price. Already included in /{id}/details; this is the lighter call for a PDP variant picker. An unpublished draft is reported as 404. Public.
          */
         get: operations["getVariants"];
         put?: never;
@@ -761,7 +801,7 @@ export interface paths {
         };
         /**
          * Get Product with category
-         * @description Fetched the Product with other details like its category using specific ID.
+         * @description Fetched the Product with other details like its category using specific ID. An unpublished draft is reported as 404.
          */
         get: operations["getProductWithDetailsById"];
         put?: never;
@@ -801,7 +841,7 @@ export interface paths {
         };
         /**
          * Get a product by slug
-         * @description The product detail page route. A slug is stable across renames, which is why storefront URLs and the seeded catalogue use it instead of the numeric id. Public.
+         * @description The product detail page route. A slug is stable across renames, which is why storefront URLs and the seeded catalogue use it instead of the numeric id. An unpublished draft is reported as 404. Public.
          */
         get: operations["getProductBySlug"];
         put?: never;
@@ -881,7 +921,7 @@ export interface paths {
         };
         /**
          * Get Products by category name
-         * @description Every product whose category name matches, case-insensitively. Where two categories share a name (Men/Denim and Women/Denim) both are included; use /search?categorySlug= for an exact branch. Public.
+         * @description Every product whose category name matches, case-insensitively. Where two categories share a name (Men/Denim and Women/Denim) both are included; use /search?categorySlug= for an exact branch. Unpublished drafts are excluded. Public.
          */
         get: operations["findProductsByCategory"];
         put?: never;
@@ -941,7 +981,7 @@ export interface paths {
         };
         /**
          * List orders for a user
-         * @description Owner or ROLE_ADMIN only. Paged.
+         * @description Owner or ROLE_ADMIN only. Paged newest first.
          */
         get: operations["getOrdersByUser"];
         put?: never;
@@ -961,7 +1001,7 @@ export interface paths {
         };
         /**
          * List my orders
-         * @description Paged orders belonging to the authenticated caller.
+         * @description Paged orders belonging to the authenticated caller, newest first.
          */
         get: operations["getMyOrders"];
         put?: never;
@@ -1025,9 +1065,49 @@ export interface paths {
         };
         /**
          * List users
-         * @description Paged list of all user accounts. Requires ROLE_ADMIN.
+         * @description Paged list of all user accounts, newest first. Optional q matches name or email. Requires ROLE_ADMIN.
          */
         get: operations["listUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List products (admin)
+         * @description Paged catalogue for the admin table, newest first. Unlike the public listing this includes unpublished drafts, because a draft is only reachable from the screen that publishes it. Optional q matches title, brand, material or category; outOfStock=true keeps only pieces whose aggregate stock is zero. Requires ROLE_ADMIN.
+         */
+        get: operations["listProducts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a product (admin)
+         * @description Full product detail including variants and gallery, drafts included. The public detail reads report an unpublished draft as 404, so this is the editor's read. Requires ROLE_ADMIN.
+         */
+        get: operations["getProduct"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1116,6 +1196,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/products/{id}/images/{imageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a gallery image
+         * @description Soft-deletes the row, closes the position gap and returns the remaining gallery in order. The file stays on disk so order snapshots keep resolving. Requires ROLE_ADMIN.
+         */
+        delete: operations["deleteGalleryImage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1125,6 +1225,7 @@ export interface components {
             description?: string;
             price?: number;
             compareAtPrice?: number;
+            clearCompareAtPrice?: boolean;
             image?: string;
             rating?: number;
             /** Format: int32 */
@@ -1159,6 +1260,10 @@ export interface components {
             slug?: string;
             brand?: string;
             compareAtPrice?: number;
+            category?: string;
+            /** Format: int64 */
+            categoryId?: number;
+            isActive?: boolean;
         };
         UpdateVariantRequestDto: {
             sku?: string;
@@ -1227,6 +1332,8 @@ export interface components {
             id?: number;
             /** Format: int64 */
             userId?: number;
+            customerName?: string;
+            customerEmail?: string;
             /** @enum {string} */
             orderStatus?: "PENDING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
             totalPrice?: number;
@@ -1256,10 +1363,11 @@ export interface components {
             variantColorName?: string;
             variantColorHex?: string;
         };
-        CreateCategoryRequestDto: {
+        UpdateCategoryRequestDto: {
             name: string;
             /** Format: int64 */
             parentId?: number;
+            moveToTopLevel?: boolean;
             description?: string;
             slug?: string;
         };
@@ -1285,6 +1393,23 @@ export interface components {
         SetStockRequestDto: {
             /** Format: int32 */
             stock: number;
+        };
+        ReorderProductImagesRequestDto: {
+            imageIds: number[];
+        };
+        ApiResponseListGetProductImageResponseDto: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: components["schemas"]["GetProductImageResponseDto"][];
+        };
+        GetProductImageResponseDto: {
+            /** Format: int64 */
+            id?: number;
+            url?: string;
+            /** Format: int32 */
+            position?: number;
+            alt?: string;
         };
         SaveAddressRequestDto: {
             label?: string;
@@ -1430,7 +1555,7 @@ export interface components {
             image?: string;
             /** Format: int64 */
             categoryId: number;
-            rating: number;
+            rating?: number;
             /** Format: int32 */
             stock?: number;
             slug?: string;
@@ -1513,6 +1638,13 @@ export interface components {
             /** Format: int64 */
             variantId?: number;
         };
+        CreateCategoryRequestDto: {
+            name: string;
+            /** Format: int64 */
+            parentId?: number;
+            description?: string;
+            slug?: string;
+        };
         AddToCartRequestDto: {
             /** Format: int64 */
             productId: number;
@@ -1584,6 +1716,12 @@ export interface components {
             email: string;
             password: string;
         };
+        ApiResponseGetProductImageResponseDto: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: components["schemas"]["GetProductImageResponseDto"];
+        };
         ApiResponseString: {
             success?: boolean;
             message?: string;
@@ -1653,14 +1791,6 @@ export interface components {
             error?: string;
             data?: components["schemas"]["GetProductWithDetailsResponseDto"];
         };
-        GetProductImageResponseDto: {
-            /** Format: int64 */
-            id?: number;
-            url?: string;
-            /** Format: int32 */
-            position?: number;
-            alt?: string;
-        };
         GetProductWithDetailsResponseDto: {
             /** Format: int64 */
             id?: number;
@@ -1679,11 +1809,11 @@ export interface components {
             category?: string;
             /** Format: int64 */
             categoryId?: number;
+            isActive?: boolean;
             categorySlug?: string;
             material?: string;
             careInstructions?: string;
             gender?: string;
-            isActive?: boolean;
             variants?: components["schemas"]["GetVariantResponseDto"][];
             images?: components["schemas"]["GetProductImageResponseDto"][];
         };
@@ -1692,20 +1822,6 @@ export interface components {
             message?: string;
             error?: string;
             data?: string[];
-        };
-        ProductSearchRequestDto: {
-            gender?: string;
-            categorySlug?: string;
-            sizes?: string[];
-            colors?: string[];
-            minPrice?: number;
-            maxPrice?: number;
-            sort?: string;
-            keyword?: string;
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            size?: number;
         };
         ApiResponsePageResponseGetProductWithDetailsResponseDto: {
             success?: boolean;
@@ -1795,6 +1911,8 @@ export interface components {
             description?: string;
             /** Format: int64 */
             parentId?: number;
+            /** @description Direct children in the same shape; empty on a leaf. */
+            children?: unknown;
         };
         ApiResponsePageResponseGetUserResponseDto: {
             success?: boolean;
@@ -2074,7 +2192,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateCategoryRequestDto"];
+                "application/json": components["schemas"]["UpdateCategoryRequestDto"];
             };
         };
         responses: {
@@ -2133,6 +2251,32 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseGetProductResponseDto"];
+                };
+            };
+        };
+    };
+    reorderGallery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReorderProductImagesRequestDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListGetProductImageResponseDto"];
                 };
             };
         };
@@ -2742,6 +2886,35 @@ export interface operations {
             };
         };
     };
+    appendGalleryImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetProductImageResponseDto"];
+                };
+            };
+        };
+    };
     uploadImage: {
         parameters: {
             query?: never;
@@ -2753,7 +2926,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": {
+                "multipart/form-data": {
                     /** Format: binary */
                     file: string;
                 };
@@ -3133,8 +3306,17 @@ export interface operations {
     };
     search: {
         parameters: {
-            query: {
-                query: components["schemas"]["ProductSearchRequestDto"];
+            query?: {
+                gender?: string;
+                categorySlug?: string;
+                sizes?: string[];
+                colors?: string[];
+                minPrice?: number;
+                maxPrice?: number;
+                sort?: string;
+                keyword?: string;
+                page?: number;
+                size?: number;
             };
             header?: never;
             path?: never;
@@ -3375,6 +3557,7 @@ export interface operations {
             query?: {
                 page?: number;
                 size?: number;
+                q?: string;
             };
             header?: never;
             path?: never;
@@ -3389,6 +3572,53 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponsePageResponseGetUserResponseDto"];
+                };
+            };
+        };
+    };
+    listProducts: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+                q?: string;
+                outOfStock?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseGetProductResponseDto"];
+                };
+            };
+        };
+    };
+    getProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetProductWithDetailsResponseDto"];
                 };
             };
         };
@@ -3476,6 +3706,29 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    deleteGalleryImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                imageId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListGetProductImageResponseDto"];
                 };
             };
         };

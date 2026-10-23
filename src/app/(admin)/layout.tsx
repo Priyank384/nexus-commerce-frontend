@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth/session";
+import { AdminShell } from "@/components/admin/admin-shell";
 
 // Same client-side guard pattern as (user), plus a role check.
 // Real authorization is on the backend (ROLE_ADMIN) — this is UX.
@@ -20,5 +21,5 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [hydrated, user, router]);
   if (!hydrated) return <div className="text-muted-foreground">Loading…</div>;
   if (!user || user.role !== "ADMIN") return null;
-  return <>{children}</>;
+  return <AdminShell>{children}</AdminShell>;
 }
