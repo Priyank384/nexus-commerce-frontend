@@ -288,7 +288,7 @@ export function ProductPurchase({ product }: { product: ProductListItem }) {
           ) : null}
           <div className="flex justify-between gap-6">
             <dt className="text-muted-foreground">Delivery</dt>
-            <dd className="text-right">Free over ₹2,000 · 3–5 days</dd>
+            <dd className="text-right">Free delivery · 3–5 working days</dd>
           </div>
         </dl>
       </div>

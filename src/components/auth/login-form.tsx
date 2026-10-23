@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { loginSchema, type LoginValues } from "@/lib/validation/auth";
 import { useSession } from "@/lib/auth/session";
+import { useHydrated } from "@/lib/use-hydrated";
 import { toAuthFailure, type ApiEnvelope } from "@/lib/api/errors";
 
 // Reads `?next=` so the guards in (user)/(admin) can bounce back after login.
@@ -23,6 +24,9 @@ function LoginFormInner() {
   const next = sanitizeNext(params.get("next"));
   const [serverAlert, setServerAlert] = useState<string | null>(null);
   const [lockoutSeconds, setLockoutSeconds] = useState<number | null>(null);
+  // See RegisterForm: a pre-hydration click must not become a native GET with the
+  // password in the query string.
+  const interactive = useHydrated();
   const set = useSession((s) => s.set);
 
   const {
@@ -87,7 +91,7 @@ function LoginFormInner() {
         <RateLimitCountdown seconds={lockoutSeconds} onExpire={() => setLockoutSeconds(null)} />
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} method="post" className="space-y-4">
         <div>
           <Label htmlFor="email">Email</Label>
           <Input id="email" type="email" autoComplete="email" {...register("email")} />
@@ -98,7 +102,7 @@ function LoginFormInner() {
           <Input id="password" type="password" autoComplete="current-password" {...register("password")} />
           {errors.password && <p className="text-sm text-destructive mt-1">{errors.password.message}</p>}
         </div>
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" className="w-full" disabled={!interactive || isSubmitting}>
           {isSubmitting ? "Signing in…" : "Log in"}
         </Button>
       </form>

@@ -15,8 +15,10 @@ export default defineConfig({
   reporter: process.env.CI ? "github" : "list",
   globalSetup: "./e2e/warm-routes.ts",
   expect: {
-    // A form submission here is a real server render, not a client route swap.
-    timeout: 10_000,
+    // A form submission here is a real server render, not a client route swap. The dev
+    // backend talks to Aiven over the public internet where a cold render is five round
+    // trips (~1.3s) and tails have been seen at 11s, so 10s is not enough headroom.
+    timeout: 20_000,
   },
   use: {
     baseURL: "http://localhost:3000",

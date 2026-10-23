@@ -14,6 +14,21 @@ export type AuthFailure = {
   message: string;
 };
 
+/**
+ * Query functions throw this so React Query can show the server's own message while the
+ * caller still sees the status. A plain Error would lose the 401/403 distinction that
+ * decides whether the UI offers a retry or sends the shopper to sign in.
+ */
+export class HttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "HttpError";
+  }
+}
+
 // Convert a fetch Response + parsed body into a typed AuthFailure the UI can
 // branch on. Only call this for responses that aren't ok().
 export function toAuthFailure(status: number, body: unknown): AuthFailure {

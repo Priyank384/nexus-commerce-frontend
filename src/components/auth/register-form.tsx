@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { registerSchema, type RegisterValues } from "@/lib/validation/auth";
 import { useSession } from "@/lib/auth/session";
+import { useHydrated } from "@/lib/use-hydrated";
 import type { ApiEnvelope } from "@/lib/api/errors";
 
 // Backend CreateUserRequestDto accepts phone as an optional plain string.
@@ -22,6 +23,9 @@ export function RegisterForm() {
   const set = useSession((s) => s.set);
   const [serverAlert, setServerAlert] = useState<string | null>(null);
   const [serverFieldErrors, setServerFieldErrors] = useState<Record<string, string>>({});
+  // Until React attaches, a click would fall through to a native submit. Keep the button
+  // inert so a password typed on a slow connection can never land in the URL bar.
+  const interactive = useHydrated();
 
   const {
     register,
@@ -109,7 +113,7 @@ export function RegisterForm() {
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} method="post" className="space-y-4">
         <div>
           <Label htmlFor="name">Name</Label>
           <Input id="name" autoComplete="name" {...register("name")} />
@@ -138,7 +142,7 @@ export function RegisterForm() {
             </p>
           )}
         </div>
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" className="w-full" disabled={!interactive || isSubmitting}>
           {isSubmitting ? "Creating…" : "Sign up"}
         </Button>
       </form>

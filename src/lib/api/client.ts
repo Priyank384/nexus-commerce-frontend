@@ -1,5 +1,5 @@
 import createClient, { type Middleware } from "openapi-fetch";
-import { useSession } from "@/lib/auth/session";
+import { ensureSession, refreshSession, useSession } from "@/lib/auth/session";
 import { decodeJwt, isExpired } from "@/lib/auth/jwt";
 import type { paths } from "./schema";
 
@@ -7,44 +7,14 @@ import type { paths } from "./schema";
 // The base URL is same-origin so Next route handlers see it and forward.
 const BASE_URL = "/";
 
-// One refresh at a time — concurrent 401s share the same refresh promise.
-let refreshPromise: Promise<string | null> | null = null;
-
-async function refreshAccessToken(): Promise<string | null> {
-  if (refreshPromise) return refreshPromise;
-  refreshPromise = (async () => {
-    try {
-      const res = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
-      if (!res.ok) {
-        useSession.getState().clear();
-        return null;
-      }
-      const body = (await res.json()) as { data?: { token?: string } };
-      const token = body?.data?.token ?? null;
-      useSession.getState().set(token);
-      return token;
-    } catch {
-      useSession.getState().clear();
-      return null;
-    } finally {
-      refreshPromise = null;
-    }
-  })();
-  return refreshPromise;
-}
-
-function currentBearer(): string | null {
-  return useSession.getState().accessToken;
-}
-
 // Proactive-refresh: if the access token is > 30 s from expiry when we send, refresh
 // before hitting the network. Catches the "user sat on a page then submitted" case
-// without a 401 round-trip. The middleware's onResponse path still retries on 401.
+// without a 401 round-trip. A cold load has no token yet, so ensureSession() waits for
+// the cookie rehydration first — otherwise an early click goes out signed-out.
 async function ensureFreshBearer(): Promise<string | null> {
-  const token = currentBearer();
+  const token = await ensureSession();
   if (!token) return null;
-  const claims = decodeJwt(token);
-  if (isExpired(claims)) return refreshAccessToken();
+  if (isExpired(decodeJwt(token))) return refreshSession();
   return token;
 }
 
@@ -56,7 +26,9 @@ const authMiddleware: Middleware = {
   },
   async onResponse({ request, response }) {
     if (response.status !== 401) return;
-    const retry = await refreshAccessToken();
+    // A request that went out signed-out cannot be rescued by a refresh.
+    if (!request.headers.get("Authorization")) return;
+    const retry = await refreshSession();
     if (!retry) return;
     const headers = new Headers(request.headers);
     headers.set("Authorization", `Bearer ${retry}`);

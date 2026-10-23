@@ -801,7 +801,7 @@ export interface paths {
         };
         /**
          * Browse the catalogue by keyword and facets
-         * @description The storefront listing, collection and search pages. Filter by keyword (matches title, brand, description or category name), gender, category slug (a parent slug matches its whole subtree), price range, sizes and colours; sort by id, price, rating, createdAt or title. Unknown gender, category, size or colour values are rejected rather than answered with an empty page. The keyword is lowercased, whitespace-folded, stripped of LIKE metacharacters and clamped to 64 characters before it becomes a cache key. Public; cached per query combination.
+         * @description The storefront listing, collection and search pages. Filter by keyword (every word must appear in the title, brand, description, material or category name), gender, category slug (a parent slug matches its whole subtree), price range, sizes and colours; sort by id, price, rating, createdAt or title. Unknown gender, category, size or colour values are rejected rather than answered with an empty page. The keyword is lowercased, whitespace-folded, stripped of LIKE metacharacters and clamped to 64 characters before it becomes a cache key. Public; cached per query combination.
          */
         get: operations["search"];
         put?: never;
@@ -1190,6 +1190,16 @@ export interface components {
             error?: string;
             data?: components["schemas"]["GetOrderResponseDto"];
         };
+        GetOrderAddressResponseDto: {
+            recipientName?: string;
+            phone?: string;
+            line1?: string;
+            line2?: string;
+            city?: string;
+            state?: string;
+            postalCode?: string;
+            country?: string;
+        };
         GetOrderResponseDto: {
             /** Format: int64 */
             id?: number;
@@ -1202,6 +1212,7 @@ export interface components {
             paymentStatus?: "CREATED" | "PAID" | "FAILED";
             /** Format: date-time */
             paidAt?: string;
+            address?: components["schemas"]["GetOrderAddressResponseDto"];
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */
@@ -1467,6 +1478,8 @@ export interface components {
         };
         CreateOrderRequestDto: {
             orderItems: components["schemas"]["OrderItemRequestDto"][];
+            /** Format: int64 */
+            addressId?: number;
         };
         OrderItemRequestDto: {
             /** Format: int64 */

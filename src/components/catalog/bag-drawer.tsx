@@ -77,10 +77,17 @@ export function BagDrawer({
             <span className="text-muted-foreground">Subtotal</span>
             <span>{formatPrice(cart?.grandTotal)}</span>
           </div>
-          <Link href="/cart" className={cn(buttonVariants(), "w-full")}>
+          <Link href="/checkout" className={cn(buttonVariants(), "w-full")} onClick={onClose}>
+            Checkout
+          </Link>
+          <Link
+            href="/cart"
+            className={cn(buttonVariants({ variant: "outline" }), "w-full")}
+            onClick={onClose}
+          >
             View bag
           </Link>
-          <p className="text-xs text-muted-foreground">Shipping and taxes calculated at checkout.</p>
+          <p className="text-xs text-muted-foreground">Free delivery on every order · 3–5 working days</p>
         </div>
       </div>
     </div>

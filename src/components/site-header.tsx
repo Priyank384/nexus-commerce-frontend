@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSession } from "@/lib/auth/session";
+import { ensureSession, useSession } from "@/lib/auth/session";
+import { useHydrated } from "@/lib/use-hydrated";
 import { api } from "@/lib/api/client";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -30,32 +31,21 @@ function useCategoryNav() {
 }
 
 export function SiteHeader() {
-  const { user, hydrated, set, clear } = useSession();
+  const { user, hydrated, clear } = useSession();
+  // Flips on the post-hydration render. Published on the header so e2e navigation can
+  // wait for React to own the page instead of clicking a server-rendered button that has
+  // no handler yet.
+  const interactive = useHydrated();
   const [menuOpen, setMenuOpen] = useState(false);
   const roots = useCategoryNav();
 
   // On first mount, ask the BFF to rehydrate the access token from the httpOnly
-  // refresh cookie. If /api/auth/refresh 401s the store stays empty.
+  // refresh cookie. ensureSession shares one in-flight refresh with the API client,
+  // so this cannot race a request that fired before hydration.
   useEffect(() => {
     if (hydrated) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
-        if (!res.ok || cancelled) {
-          if (!cancelled) useSession.getState().clear();
-          return;
-        }
-        const body = (await res.json()) as { data?: { token?: string } };
-        if (!cancelled) set(body?.data?.token ?? null);
-      } catch {
-        if (!cancelled) clear();
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [hydrated, set, clear]);
+    void ensureSession();
+  }, [hydrated]);
 
   async function onLogout() {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
@@ -64,7 +54,7 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
+    <header data-hydrated={interactive} className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
       <div className="shell-x flex h-16 items-center gap-8">
         <Link href="/" className="text-sm font-medium tracking-[0.3em] uppercase">
           Plain Thread

@@ -19,7 +19,7 @@ test("register → auto-login → header shows email → logout", async ({ page 
 
   // On success the form calls router.replace("/") — Phase 3 made home a real page, so
   // landing there is the assertion, not a redirect through it.
-  await expect(page).toHaveURL(/\/$/, { timeout: 8_000 });
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Considered staples");
 
   const header = page.locator("header");

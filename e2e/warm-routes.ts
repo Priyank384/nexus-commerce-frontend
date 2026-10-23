@@ -13,6 +13,9 @@ const ROUTES = [
   "/login",
   "/register",
   "/cart",
+  "/checkout",
+  "/orders",
+  "/orders/1",
 ];
 
 async function warmRoutes() {
