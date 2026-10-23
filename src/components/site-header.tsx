@@ -100,6 +100,11 @@ export function SiteHeader() {
             </div>
           ))}
           {user && (
+            <Link href="/account" className="label-caps text-muted-foreground hover:text-foreground">
+              Account
+            </Link>
+          )}
+          {user && (
             <Link href="/cart" className="label-caps text-muted-foreground hover:text-foreground">
               Cart
             </Link>
@@ -185,6 +190,9 @@ export function SiteHeader() {
           ))}
           {user && (
             <>
+              <Link href="/account" className="label-caps" onClick={() => setMenuOpen(false)}>
+                Account
+              </Link>
               <Link href="/cart" className="label-caps" onClick={() => setMenuOpen(false)}>
                 Cart
               </Link>

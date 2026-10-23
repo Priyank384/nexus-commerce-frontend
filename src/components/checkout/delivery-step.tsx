@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { useCreateAddress, type Address } from "@/lib/cart/queries";
+import { useCreateAddress, type Address } from "@/lib/addresses/queries";
 import { HttpError } from "@/lib/api/errors";
 import { addressSchema, type AddressValues, type ContactValues } from "@/lib/validation/checkout";
 import { AddressSummary } from "./summary";

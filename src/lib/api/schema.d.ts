@@ -648,6 +648,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get my profile
+         * @description Name, email, phone and role for the authenticated caller. The account page reads this because the JWT only carries id, email and role.
+         */
+        get: operations["getMyProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reviews/{id}": {
         parameters: {
             query?: never;
@@ -1133,6 +1153,8 @@ export interface components {
             image?: string;
             rating?: number;
             /** Format: int32 */
+            reviewCount?: number;
+            /** Format: int32 */
             stock?: number;
             slug?: string;
             brand?: string;
@@ -1314,6 +1336,7 @@ export interface components {
             id?: number;
             /** Format: int64 */
             productId?: number;
+            productSlug?: string;
             productTitle?: string;
             productImage?: string;
             price?: number;
@@ -1388,6 +1411,7 @@ export interface components {
             /** Format: int64 */
             orderId?: number;
             rating?: number;
+            reviewerName?: string;
             comment?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -1645,6 +1669,8 @@ export interface components {
             price?: number;
             image?: string;
             rating?: number;
+            /** Format: int32 */
+            reviewCount?: number;
             /** Format: int32 */
             stock?: number;
             slug?: string;
@@ -2901,6 +2927,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseListGetWishlistResponseDto"];
+                };
+            };
+        };
+    };
+    getMyProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetUserResponseDto"];
                 };
             };
         };

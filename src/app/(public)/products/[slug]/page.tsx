@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductPurchase } from "@/components/catalog/product-purchase";
 import { ProductCard } from "@/components/catalog/product-card";
+import { ProductReviews } from "@/components/reviews/product-reviews";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CatalogError, getProductBySlug, searchProducts } from "@/lib/catalog/server";
 
@@ -113,6 +114,13 @@ async function Detail({ params }: { params: Params }) {
           {product.careInstructions ? <li>{product.careInstructions}</li> : null}
         </ul>
       </section>
+
+      <ProductReviews
+        productId={product.id ?? 0}
+        productTitle={product.title ?? "this piece"}
+        rating={product.rating}
+        reviewCount={product.reviewCount}
+      />
 
       {others.length ? (
         <section aria-labelledby="related-heading">

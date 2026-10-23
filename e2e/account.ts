@@ -14,11 +14,14 @@ export type TestAccount = {
  * login returns, so a spec can seed addresses/orders over the API for the same account
  * without spending another login against the rate limiter.
  */
-export async function registerNewUser(page: Page): Promise<TestAccount> {
+export async function registerNewUser(
+  page: Page,
+  options: { name?: string } = {},
+): Promise<TestAccount> {
   const stamp = Date.now();
   const email = `pw-p4-${stamp}@nexus.test`;
   const password = "correct-horse-battery";
-  const name = `PW Phase4 ${stamp}`;
+  const name = options.name ?? `PW Phase4 ${stamp}`;
 
   await visit(page, "/register");
   const loginResponse = page.waitForResponse(

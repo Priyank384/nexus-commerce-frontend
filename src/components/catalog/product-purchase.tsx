@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { ProductGallery, type GalleryImage } from "./product-gallery";
 import { BagDrawer, type CartSnapshot } from "./bag-drawer";
+import { WishlistButton } from "./wishlist-button";
 import { api } from "@/lib/api/client";
 import { toAuthFailure } from "@/lib/api/errors";
 import { discountPercent, formatPrice, groupVariantsByColor, imageUrlForColor } from "@/lib/catalog/format";
@@ -271,6 +272,11 @@ export function ProductPurchase({ product }: { product: ProductListItem }) {
           >
             {adding ? "Adding…" : stock === 0 ? "Sold out" : `Add to bag · ${formatPrice(price * quantity)}`}
           </Button>
+          <WishlistButton
+            productId={product.id ?? 0}
+            variantId={variant?.id}
+            className="size-11 shrink-0"
+          />
         </div>
 
         <dl className="mt-8 space-y-2 border-t pt-6 text-sm">

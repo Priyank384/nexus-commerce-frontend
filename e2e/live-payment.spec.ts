@@ -1,9 +1,8 @@
 import { spawn } from "node:child_process";
-import { createHmac } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Frame, type Page } from "@playwright/test";
 import { addFirstProductToBag, registerNewUser, seedUnpaidOrder } from "./account";
+import { BACKEND, deliverWebhook } from "./razorpay";
 import { visit } from "./visit";
 
 // These specs talk to the real Razorpay test-mode gateway and settle a real test order, so
@@ -11,7 +10,6 @@ import { visit } from "./visit";
 // e2e/live-payment.spec.ts`. The signed-webhook spec also needs the backend's
 // RAZORPAY_WEBHOOK_SECRET, read from ../NexusCommerce/.env when not already exported.
 const enabled = process.env.LIVE_PAYMENT === "1";
-const BACKEND = process.env.BACKEND_URL ?? "http://localhost:3001";
 
 test.describe("live Razorpay test mode", () => {
   test.skip(!enabled, "Set LIVE_PAYMENT=1 to exercise the real Razorpay gateway");
@@ -422,24 +420,4 @@ async function waitForBackend(up: boolean, timeoutMs: number) {
     await new Promise((resolve) => setTimeout(resolve, 1_000));
   }
   throw new Error(`Backend did not ${up ? "start" : "stop"} within ${timeoutMs}ms`);
-}
-
-async function deliverWebhook(page: Page, body: string) {
-  const signature = createHmac("sha256", webhookSecret()).update(body).digest("hex");
-  const response = await page.request.post(`${BACKEND}/api/v1/payments/razorpay/webhook`, {
-    headers: { "Content-Type": "application/json", "X-Razorpay-Signature": signature },
-    data: body,
-  });
-  expect(response.ok()).toBeTruthy();
-}
-
-/** Read from the environment first; fall back to the backend's git-ignored .env. */
-function webhookSecret(): string {
-  const fromEnv = process.env.RAZORPAY_WEBHOOK_SECRET;
-  if (fromEnv) return fromEnv;
-  const envFile = readFileSync(join(process.cwd(), "..", "NexusCommerce", ".env"), "utf8");
-  const line = envFile.split("\n").find((entry) => entry.startsWith("RAZORPAY_WEBHOOK_SECRET="));
-  const value = line?.slice("RAZORPAY_WEBHOOK_SECRET=".length).trim();
-  if (!value) throw new Error("RAZORPAY_WEBHOOK_SECRET is not configured");
-  return value;
 }

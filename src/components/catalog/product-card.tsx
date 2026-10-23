@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { formatPrice, discountPercent } from "@/lib/catalog/format";
 import type { ProductListItem } from "@/lib/catalog/server";
+import { WishlistButton } from "./wishlist-button";
 
 /**
  * Listing payloads carry `images: []` and only the hero `image`, so the card must not reach for
@@ -20,34 +21,41 @@ export function ProductCard({
   const href = `/products/${product.slug}`;
 
   return (
-    <Link href={href} className="group block">
-      <div className="relative aspect-[3/4] overflow-hidden bg-muted">
-        {product.image ? (
-          <Image
-            src={product.image}
-            alt={product.title ?? "Product"}
-            fill
-            priority={priority}
-            sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, (min-width: 480px) 50vw, 100vw"
-            className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
-          />
-        ) : null}
-        {off ? (
-          <span className="label-caps absolute top-3 left-3 bg-background px-2 py-1 text-[11px]">
-            −{off}%
-          </span>
-        ) : null}
-      </div>
-      <div className="mt-3 space-y-1">
-        <p className="label-caps text-muted-foreground">{product.category}</p>
-        <h3 className="truncate text-sm text-foreground">{product.title}</h3>
-        <p className="flex items-baseline gap-2 text-sm">
-          <span>{formatPrice(product.price)}</span>
-          {product.compareAtPrice ? (
-            <span className="text-muted-foreground line-through">{formatPrice(product.compareAtPrice)}</span>
+    // The heart is a sibling of the link, not a child: a button inside an anchor is invalid
+    // HTML and swallows the card navigation on some browsers.
+    <div className="group relative">
+      <Link href={href} className="block">
+        <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+          {product.image ? (
+            <Image
+              src={product.image}
+              alt={product.title ?? "Product"}
+              fill
+              priority={priority}
+              sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, (min-width: 480px) 50vw, 100vw"
+              className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+            />
           ) : null}
-        </p>
-      </div>
-    </Link>
+          {off ? (
+            <span className="label-caps absolute top-3 left-3 bg-background px-2 py-1 text-[11px]">
+              −{off}%
+            </span>
+          ) : null}
+        </div>
+        <div className="mt-3 space-y-1">
+          <p className="label-caps text-muted-foreground">{product.category}</p>
+          <h3 className="truncate text-sm text-foreground">{product.title}</h3>
+          <p className="flex items-baseline gap-2 text-sm">
+            <span>{formatPrice(product.price)}</span>
+            {product.compareAtPrice ? (
+              <span className="text-muted-foreground line-through">{formatPrice(product.compareAtPrice)}</span>
+            ) : null}
+          </p>
+        </div>
+      </Link>
+      {product.id ? (
+        <WishlistButton productId={product.id} className="absolute top-3 right-3 size-9" />
+      ) : null}
+    </div>
   );
 }
