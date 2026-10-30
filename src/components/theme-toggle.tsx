@@ -1,11 +1,8 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-
-const ORDER = ["light", "dark", "system"] as const;
-type Mode = (typeof ORDER)[number];
 
 // The canonical "are we on the client?" shim. A mount effect that flips state
 // trips react-hooks/set-state-in-effect, and useTheme() returns undefined on the
@@ -20,12 +17,13 @@ function useMounted() {
 }
 
 /**
- * Cycles light → dark → system. The cycle has to read `theme` (the stored choice) rather than
- * `resolvedTheme`: under a dark OS preference "system" resolves to "dark", so cycling on the
- * resolved value always picked "system" again and the page never left dark mode.
+ * A two-state light/dark switch. "system" is only the starting default: the first click has to
+ * change what the shopper is looking at, so it resolves the OS preference and commits to the
+ * opposite of it. Cycling the stored value instead made the first click go system → light,
+ * which is a no-op whenever the OS is already light.
  */
 export function ThemeToggle({ className }: { className?: string }) {
-  const { theme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const mounted = useMounted();
 
   if (!mounted) {
@@ -33,9 +31,11 @@ export function ThemeToggle({ className }: { className?: string }) {
     return <span className="inline-block size-4 align-middle" aria-hidden />;
   }
 
-  const current: Mode = ORDER.includes(theme as Mode) ? (theme as Mode) : "system";
-  const next = ORDER[(ORDER.indexOf(current) + 1) % ORDER.length];
-  const Icon = current === "light" ? Sun : current === "dark" ? Moon : Monitor;
+  const current = theme === "light" || theme === "dark"
+    ? theme
+    : resolvedTheme === "dark" ? "dark" : "light";
+  const next = current === "dark" ? "light" : "dark";
+  const Icon = current === "dark" ? Moon : Sun;
 
   return (
     <button
