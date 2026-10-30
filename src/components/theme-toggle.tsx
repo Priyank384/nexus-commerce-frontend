@@ -20,12 +20,12 @@ function useMounted() {
 }
 
 /**
- * Cycles light → dark → system. next-themes only knows the resolved theme
- * client-side, so the button stays empty until mount — a glyph chosen from
- * `system` in the server HTML would mismatch for every light-preference visitor.
+ * Cycles light → dark → system. The cycle has to read `theme` (the stored choice) rather than
+ * `resolvedTheme`: under a dark OS preference "system" resolves to "dark", so cycling on the
+ * resolved value always picked "system" again and the page never left dark mode.
  */
 export function ThemeToggle({ className }: { className?: string }) {
-  const { resolvedTheme, setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const mounted = useMounted();
 
   if (!mounted) {
@@ -33,7 +33,7 @@ export function ThemeToggle({ className }: { className?: string }) {
     return <span className="inline-block size-4 align-middle" aria-hidden />;
   }
 
-  const current: Mode = ORDER.includes(resolvedTheme as Mode) ? (resolvedTheme as Mode) : "system";
+  const current: Mode = ORDER.includes(theme as Mode) ? (theme as Mode) : "system";
   const next = ORDER[(ORDER.indexOf(current) + 1) % ORDER.length];
   const Icon = current === "light" ? Sun : current === "dark" ? Moon : Monitor;
 
