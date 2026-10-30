@@ -25,7 +25,7 @@ function FacetLink({
   return (
     <Link
       href={href}
-      aria-pressed={active}
+      aria-current={active ? "true" : undefined}
       className={cn(
         "inline-flex items-center gap-2 border px-3 py-1.5 text-sm transition-colors",
         active
@@ -42,7 +42,7 @@ function FacetLink({
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <section className="border-t border-border py-5 first:border-t-0 first:pt-0">
-      <p className="label-caps mb-3 text-muted-foreground">{label}</p>
+      <h2 className="label-caps mb-3 font-normal text-muted-foreground">{label}</h2>
       {children}
     </section>
   );
@@ -193,6 +193,7 @@ export function FacetPanel({
                 <li key={child.slug}>
                   <Link
                     href={catalogHref(query, { category: child.slug })}
+                    aria-current={query.category === child.slug ? "true" : undefined}
                     className={cn(
                       "text-sm hover:underline hover:underline-offset-4",
                       query.category === child.slug

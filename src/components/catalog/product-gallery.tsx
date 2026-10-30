@@ -50,7 +50,7 @@ export function ProductGallery({
             type="button"
             onClick={() => setFrame({ colour, index: i })}
             aria-label={`View ${image.alt}`}
-            aria-current={i === activeIndex}
+            aria-pressed={i === activeIndex}
             className={cn(
               "relative aspect-[4/5] w-14 shrink-0 overflow-hidden border transition-colors md:w-full",
               i === activeIndex ? "border-foreground" : "border-transparent hover:border-border",

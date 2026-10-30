@@ -71,7 +71,7 @@ export function ReviewForm({
 
         <div className="space-y-5">
           <div className="space-y-2">
-            <Label>Rating</Label>
+            <span className="block text-sm font-medium leading-none">Rating</span>
             <RatingPicker value={rating} onChange={setRating} disabled={create.isPending} />
           </div>
           <div className="space-y-2">
@@ -82,9 +82,12 @@ export function ReviewForm({
               maxLength={2000}
               rows={5}
               placeholder="How does it fit? How has it washed?"
+              aria-describedby="review-comment-count"
               onChange={(event) => setComment(event.target.value)}
             />
-            <p className="text-xs text-muted-foreground">{comment.length} / 2000</p>
+            <p id="review-comment-count" className="text-xs text-muted-foreground">
+              {comment.length} / 2000
+            </p>
           </div>
         </div>
 

@@ -57,3 +57,22 @@ export function useSetUserEnabled(id: number) {
     },
   });
 }
+
+/** Role changes the caller's own permissions if they demote themselves, so the page hides it. */
+export function useSetUserRole(id: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (role: AdminRole): Promise<AdminUser> => {
+      const { data, error, response } = await api.PATCH("/api/v1/admin/users/{id}", {
+        params: { path: { id } },
+        body: { role },
+      });
+      if (!response.ok || !data?.data) throw failed(response.status, error);
+      return data.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ADMIN_USERS_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "metrics"] });
+    },
+  });
+}

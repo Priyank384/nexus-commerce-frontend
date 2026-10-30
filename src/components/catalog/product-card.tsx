@@ -4,18 +4,26 @@ import { formatPrice, discountPercent } from "@/lib/catalog/format";
 import type { ProductListItem } from "@/lib/catalog/server";
 import { WishlistButton } from "./wishlist-button";
 
+/** Two columns on phones, three from `md`, four from `xl`. */
+const THREE_UP_SIZES = "(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw";
+/** Two columns on phones, four from `md` — the home page and related-product rails. */
+export const FOUR_UP_SIZES = "(min-width: 768px) 25vw, 50vw";
+
 /**
  * Listing payloads carry `images: []` and only the hero `image`, so the card must not reach for
- * the gallery. `sizes` mirrors the grid breakpoints in `ProductGrid`; next/image needs it to
- * pick a width instead of assuming the card is full viewport.
+ * the gallery. `sizes` has to match the enclosing grid, otherwise next/image fetches a width the
+ * slot never uses; callers on a four-column grid pass `sizes` accordingly.
  */
 export function ProductCard({
   product,
   priority = false,
+  sizes = THREE_UP_SIZES,
 }: {
   product: ProductListItem;
   /** First row of a grid: the image is the LCP element, so it must not wait for a scroll hint. */
   priority?: boolean;
+  /** Override when the surrounding grid is not the three-up catalogue grid. */
+  sizes?: string;
 }) {
   const off = discountPercent(product.price ?? 0, product.compareAtPrice);
   const href = `/products/${product.slug}`;
@@ -32,7 +40,7 @@ export function ProductCard({
               alt={product.title ?? "Product"}
               fill
               priority={priority}
-              sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, (min-width: 480px) 50vw, 100vw"
+              sizes={sizes}
               className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
             />
           ) : null}

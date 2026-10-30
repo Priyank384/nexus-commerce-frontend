@@ -1,12 +1,13 @@
-import { cache, Suspense } from "react";
+import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductPurchase } from "@/components/catalog/product-purchase";
-import { ProductCard } from "@/components/catalog/product-card";
+import { FOUR_UP_SIZES, ProductCard } from "@/components/catalog/product-card";
 import { ProductReviews } from "@/components/reviews/product-reviews";
-import { Skeleton } from "@/components/ui/skeleton";
-import { CatalogError, getProductBySlug, searchProducts } from "@/lib/catalog/server";
+import { ProductJsonLd } from "@/components/seo/product-json-ld";
+import { getProductBySlug, searchProducts } from "@/lib/catalog/server";
+import { SITE_DESCRIPTION, SITE_LOCALE, SITE_NAME } from "@/lib/site";
 
 type Params = Promise<{ slug: string }>;
 
@@ -17,54 +18,49 @@ type Params = Promise<{ slug: string }>;
 const loadProduct = cache((slug: string) => getProductBySlug(slug));
 
 async function loadOr404(slug: string) {
-  try {
-    return await loadProduct(slug);
-  } catch (error) {
-    if (error instanceof CatalogError && error.status === 404) notFound();
-    throw error;
-  }
+  const product = await loadProduct(slug);
+  // Cache Components has already streamed this route's shell by the time the response
+  // resolves, so this not-found renders with a 200 (a soft 404). Next marks it `noindex`,
+  // which is the documented trade-off; a hard status would need a proxy pre-check that
+  // costs every live product view a backend round trip.
+  if (!product) notFound();
+  return product;
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
-  try {
-    const product = await loadProduct(slug);
-    return {
-      title: product.title,
-      description: product.description?.slice(0, 160),
-    };
-  } catch {
-    return { title: "Product" };
-  }
+  const product = await loadProduct(slug);
+  // The page raises notFound() itself; with no product there is no head to write.
+  if (!product) return {};
+  const title = product.title ?? SITE_NAME;
+  const description = product.description?.slice(0, 160) || SITE_DESCRIPTION;
+  const image = product.image ? [{ url: product.image, alt: title }] : undefined;
+  const path = `/products/${product.slug ?? slug}`;
+  return {
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: {
+      type: "website",
+      siteName: SITE_NAME,
+      locale: SITE_LOCALE,
+      url: path,
+      title,
+      description,
+      images: image,
+    },
+    twitter: { card: "summary_large_image", title, description, images: product.image ? [product.image] : undefined },
+  };
 }
 
-function DetailSkeleton() {
-  return (
-    <div className="space-y-10">
-      <Skeleton className="h-4 w-48" />
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-16">
-        <Skeleton className="aspect-[4/5] w-full" />
-        <div className="space-y-4">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-8 w-56" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-11 w-full" />
-        </div>
-      </div>
-    </div>
-  );
-}
+/**
+ * The page awaits per-request data, so it has no instant static shell; `instant = false`
+ * tells the Cache Components validator that blocking this segment is intentional. At runtime
+ * the shell still streams, which is why a missing slug renders the 404 UI with a 200.
+ */
+export const instant = false;
 
-/** Under cacheComponents every uncached read needs a boundary, including this route's. */
-export default function ProductPage({ params }: { params: Params }) {
-  return (
-    <Suspense fallback={<DetailSkeleton />}>
-      <Detail params={params} />
-    </Suspense>
-  );
-}
-
-async function Detail({ params }: { params: Params }) {
+export default async function ProductPage({ params }: { params: Params }) {
   const { slug } = await params;
   const product = await loadOr404(slug);
 
@@ -79,6 +75,7 @@ async function Detail({ params }: { params: Params }) {
 
   return (
     <div className="space-y-20">
+      <ProductJsonLd product={product} />
       <nav aria-label="Breadcrumb" className="label-caps text-muted-foreground">
         <Link href="/products" className="hover:text-foreground">
           Shop
@@ -129,7 +126,7 @@ async function Detail({ params }: { params: Params }) {
           </h2>
           <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4">
             {others.map((entry) => (
-              <ProductCard key={entry.id} product={entry} />
+              <ProductCard key={entry.id} product={entry} sizes={FOUR_UP_SIZES} />
             ))}
           </div>
         </section>

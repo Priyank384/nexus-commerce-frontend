@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -48,6 +48,15 @@ export function CheckoutView() {
   // Survives a failed request without surviving a refresh: the same key replays the first
   // order if the response was lost, instead of placing a second one.
   const idempotencyKey = useRef<string | null>(null);
+  // Swapping the step form below the fold leaves focus on a button that no longer exists.
+  // Moving it to the new step's heading keeps keyboard and screen-reader users oriented.
+  const stepPanel = useRef<HTMLDivElement>(null);
+  const lastStep = useRef(step);
+  useEffect(() => {
+    if (lastStep.current === step) return;
+    lastStep.current = step;
+    stepPanel.current?.querySelector<HTMLElement>("h2")?.focus();
+  }, [step]);
 
   const cart = cartQuery.data;
   const items = cart?.items ?? [];
@@ -186,7 +195,11 @@ export function CheckoutView() {
             const active = entry.number === step;
             const done = entry.number < step || order != null;
             return (
-              <li key={entry.number} className="flex items-center gap-2">
+              <li
+                key={entry.number}
+                aria-current={active ? "step" : undefined}
+                className="flex items-center gap-2"
+              >
                 <span
                   className={cn(
                     "flex size-5 items-center justify-center rounded-full border text-[10px] tabular-nums",
@@ -208,7 +221,7 @@ export function CheckoutView() {
         </ol>
 
         <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-16">
-          <div>
+          <div ref={stepPanel}>
             {step === 1 ? (
               <ContactStep
                 initial={initialContact}

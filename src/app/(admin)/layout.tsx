@@ -1,25 +1,17 @@
-"use client";
+import type { Metadata } from "next";
+import { AdminGate } from "@/components/admin/admin-gate";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "@/lib/auth/session";
-import { AdminShell } from "@/components/admin/admin-shell";
+// The admin console only renders for a signed-in ADMIN, which the store cannot know
+// during a static prefetch. Blocking navigation is honest here, same as (user).
+export const instant = false;
 
-// Same client-side guard pattern as (user), plus a role check.
-// Real authorization is on the backend (ROLE_ADMIN) — this is UX.
+export const metadata: Metadata = {
+  // The admin pages themselves are client components and cannot export metadata, so the
+  // segment title lives here rather than leaving tabs showing the storefront title.
+  title: "Admin",
+  robots: { index: false, follow: false },
+};
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const { user, hydrated } = useSession();
-  useEffect(() => {
-    if (!hydrated) return;
-    if (!user) {
-      const here = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/admin";
-      router.replace(`/login?next=${encodeURIComponent(here)}`);
-    } else if (user.role !== "ADMIN") {
-      router.replace("/");
-    }
-  }, [hydrated, user, router]);
-  if (!hydrated) return <div className="text-muted-foreground">Loading…</div>;
-  if (!user || user.role !== "ADMIN") return null;
-  return <AdminShell>{children}</AdminShell>;
+  return <AdminGate>{children}</AdminGate>;
 }

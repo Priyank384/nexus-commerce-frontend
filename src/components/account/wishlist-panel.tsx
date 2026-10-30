@@ -49,9 +49,14 @@ export function WishlistPanel() {
 
   if (wishlist.isError) {
     return (
-      <p role="alert" className="text-sm text-muted-foreground">
-        We could not load your saved pieces.
-      </p>
+      <div className="space-y-3">
+        <p role="alert" className="text-sm text-muted-foreground">
+          We could not load your saved pieces.
+        </p>
+        <Button variant="outline" size="sm" onClick={() => void wishlist.refetch()}>
+          Try again
+        </Button>
+      </div>
     );
   }
 

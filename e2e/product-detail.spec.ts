@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { adminCredentials } from "./admin";
 import { visit } from "./visit";
 
 // The detail page is the one place the catalogue has real client state: colour, size and
@@ -24,11 +25,60 @@ test.describe("product detail", () => {
     await expect(page.getByText("In stock · ready to ship")).toBeVisible();
   });
 
-  test("a sold-out size cannot be picked and says so when it is the default", async ({ page }) => {
-    // Black L is seeded at stock 0.
-    await page.getByRole("button", { name: "Black", exact: true }).click();
-    await expect(page.getByRole("button", { name: "L", exact: true })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "M", exact: true })).toBeEnabled();
+  test("a colour with nothing left cannot be picked or bought", async ({ page, request }) => {
+    test.setTimeout(120_000);
+    // Stock drifts — checkout consumes it and the inventory specs restock it — so seed the
+    // premise over the admin API and put the numbers back when the assertions are done.
+    const { email, password } = adminCredentials();
+    const login = await request.post("/api/auth/login", { data: { email, password } });
+    expect(login.ok()).toBeTruthy();
+    const token = ((await login.json()) as { data?: { token?: string } }).data?.token;
+    expect(token).toBeTruthy();
+
+    const variantsResponse = await request.get("/api/v1/products/1101/variants");
+    const variants = ((await variantsResponse.json()) as {
+      data: { id: number; size: string; colorName: string; stock: number }[];
+    }).data;
+    const black = variants.filter((entry) => entry.colorName === "Black");
+    expect(black.length).toBeGreaterThan(1);
+
+    const setStock = (id: number, stock: number) =>
+      request.put(`/api/v1/products/variants/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { stock },
+      });
+    // The backend evicts its cached product read after the write commits; that eviction can
+    // land a moment after the PUT responds, so wait for the read the storefront will make.
+    const slugStock = async () => {
+      const response = await request.get("/api/v1/products/slug/organic-cotton-crew-tee");
+      const body = (await response.json()) as {
+        data: { variants: { id: number; stock: number }[] };
+      };
+      const byId = new Map(body.data.variants.map((entry) => [entry.id, entry.stock]));
+      return black.map((entry) => byId.get(entry.id) ?? null);
+    };
+
+    try {
+      for (const entry of black) expect((await setStock(entry.id, 0)).ok()).toBeTruthy();
+      await expect.poll(slugStock, { timeout: 15_000 }).toEqual(black.map(() => 0));
+
+      // The page opens on the first colour still in stock, so the empty one is picked by hand.
+      await visit(page, "/products/organic-cotton-crew-tee");
+      await page.getByRole("button", { name: "Black", exact: true }).click();
+      await expect(page.getByText(/^Sold out in Black · /)).toBeVisible();
+      for (const entry of black) {
+        // A sold-out button carries a screen-reader suffix, so match its prefix.
+        await expect(page.getByRole("button", { name: new RegExp(`^${entry.size}( |$)`) })).toBeDisabled();
+      }
+      await expect(page.getByRole("button", { name: "Sold out", exact: true })).toBeDisabled();
+    } finally {
+      for (const entry of black) {
+        expect((await setStock(entry.id, entry.stock)).ok()).toBeTruthy();
+      }
+      await expect
+        .poll(slugStock, { timeout: 15_000 })
+        .toEqual(black.map((entry) => entry.stock));
+    }
   });
 
   test("the gallery follows the thumbnails and the colour", async ({ page }) => {

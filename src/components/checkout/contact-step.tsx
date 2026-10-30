@@ -23,7 +23,9 @@ export function ContactStep({
   return (
     <form onSubmit={handleSubmit(onContinue)} className="space-y-6" noValidate>
       <div>
-        <h2 className="text-lg">Contact</h2>
+        <h2 tabIndex={-1} className="text-lg outline-none">
+          Contact
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Your receipt and delivery updates go to this address.
         </p>
@@ -38,26 +40,47 @@ export function ContactStep({
             autoComplete="email"
             readOnly
             className="bg-muted/50"
+            aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? "contact-email-error" : undefined}
             {...register("email")}
           />
           {errors.email ? (
-            <p className="mt-1 text-sm text-destructive">{errors.email.message}</p>
+            <p id="contact-email-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.email.message}
+            </p>
           ) : null}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="contact-name">Full name</Label>
-            <Input id="contact-name" autoComplete="name" {...register("name")} />
+            <Input
+              id="contact-name"
+              autoComplete="name"
+              aria-invalid={Boolean(errors.name)}
+              aria-describedby={errors.name ? "contact-name-error" : undefined}
+              {...register("name")}
+            />
             {errors.name ? (
-              <p className="mt-1 text-sm text-destructive">{errors.name.message}</p>
+              <p id="contact-name-error" role="alert" className="mt-1 text-sm text-destructive">
+                {errors.name.message}
+              </p>
             ) : null}
           </div>
           <div>
             <Label htmlFor="contact-phone">Phone</Label>
-            <Input id="contact-phone" type="tel" autoComplete="tel" {...register("phone")} />
+            <Input
+              id="contact-phone"
+              type="tel"
+              autoComplete="tel"
+              aria-invalid={Boolean(errors.phone)}
+              aria-describedby={errors.phone ? "contact-phone-error" : undefined}
+              {...register("phone")}
+            />
             {errors.phone ? (
-              <p className="mt-1 text-sm text-destructive">{errors.phone.message}</p>
+              <p id="contact-phone-error" role="alert" className="mt-1 text-sm text-destructive">
+                {errors.phone.message}
+              </p>
             ) : null}
           </div>
         </div>

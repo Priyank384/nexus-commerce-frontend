@@ -178,11 +178,14 @@ with the envelope — no endpoint returns 204.
 ## Testing
 
 - Unit: `npm test` — MSW stubs the BFF (`/api/auth/*`) and any `/api/v1/*` paths a test hits.
-- E2E: bring up the backend on `:3001`, export the bootstrap-admin credentials, then run the suite.
-  Playwright spawns `next dev` automatically and reuses it if already running.
+- E2E: bring up the backend on `:3001`, then run the suite. `npm run test:e2e` reads
+  `../NexusCommerce/.env` itself (`scripts/e2e.mjs`) for `ADMIN_BOOTSTRAP_EMAIL` / `_PASSWORD`
+  and the Razorpay keys — do not `source` that file, unquoted `&`/`#` in a value breaks the shell.
+  It also pins `API_BASE_URL=http://localhost:3001` (unless the shell already sets it), so a
+  `.env.local` pointing the dev server at a deployed backend does not leak into the run. Because
+  Playwright reuses a dev server that is already running, restart it after changing that value.
 
   ```bash
-  set -a; source ../NexusCommerce/.env; set +a   # ADMIN_BOOTSTRAP_EMAIL / _PASSWORD
   npm run test:e2e
   ```
 

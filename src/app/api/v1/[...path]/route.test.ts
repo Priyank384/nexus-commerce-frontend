@@ -12,8 +12,8 @@ const captured: Probe = {};
 function upstream(headers: Record<string, string>, body: string) {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string, init: RequestInit) => {
-      captured.url = url;
+    vi.fn(async (url: string | URL, init: RequestInit) => {
+      captured.url = String(url);
       captured.init = init;
       captured.headers = new Headers(init.headers);
       return new Response(body, { status: 200, headers });
@@ -51,18 +51,85 @@ describe("/api/v1 proxy", () => {
     expect(captured.headers?.get("host")).toBeNull();
   });
 
-  it("answers with a 502 envelope instead of throwing when upstream is down", async () => {
+  it("never forwards the refresh cookie or spoofable origin headers", async () => {
+    upstream({ "content-type": "application/json" }, "{}");
+    await GET(
+      new NextRequest("http://localhost:3000/api/v1/cart", {
+        headers: {
+          cookie: "rc=secret-refresh-token",
+          "x-forwarded-for": "1.2.3.4",
+          "x-real-ip": "1.2.3.4",
+          forwarded: "for=1.2.3.4",
+        },
+      }),
+    );
+    expect(captured.headers?.get("cookie")).toBeNull();
+    expect(captured.headers?.get("x-forwarded-for")).toBeNull();
+    expect(captured.headers?.get("x-real-ip")).toBeNull();
+    expect(captured.headers?.get("forwarded")).toBeNull();
+  });
+
+  it("drops an upstream set-cookie instead of folding it into a corrupt header", async () => {
+    upstream({ "set-cookie": "rc=a, rc=b", "content-type": "application/json" }, "{}");
+    const res = await GET(new NextRequest("http://localhost:3000/api/v1/products"));
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("keeps the login endpoints out of reach of the generic proxy", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const res = await POST(
+      new NextRequest("http://localhost:3000/api/v1/auth/login", {
+        method: "POST",
+        body: '{"email":"a@b.c","password":"x"}',
+      }),
+    );
+    expect(res.status).toBe(404);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects a segment that would resolve outside /api/v1", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const res = await GET(new NextRequest("http://localhost:3000/api/v1/products%2F..%2Factuator"));
+    expect(res.status).toBe(404);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects an oversized declared body before contacting the backend", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const res = await POST(
+      new NextRequest("http://localhost:3000/api/v1/products", {
+        method: "POST",
+        headers: { "content-length": String(11 * 1024 * 1024) },
+        body: "{}",
+      }),
+    );
+    expect(res.status).toBe(413);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("answers with a generic 502 envelope instead of leaking the failure cause", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
-        throw new Error("connect ECONNREFUSED");
+        throw new Error("connect ECONNREFUSED 10.0.0.5:3001");
       }),
     );
     const res = await GET(new NextRequest("http://localhost:3000/api/v1/products"));
     expect(res.status).toBe(502);
-    const body = (await res.json()) as { message: string; error: string };
+    const body = (await res.json()) as { message: string; error: string | null };
     expect(body.message).toBe("Backend unreachable");
-    expect(body.error).toContain("ECONNREFUSED");
+    expect(body.error).toBeNull();
+  });
+
+  it("marks authenticated responses no-store but leaves public reads cacheable", async () => {
+    upstream({ "content-type": "application/json" }, "{}");
+    const cart = await GET(new NextRequest("http://localhost:3000/api/v1/cart"));
+    expect(cart.headers.get("cache-control")).toBe("no-store");
+    const products = await GET(new NextRequest("http://localhost:3000/api/v1/products"));
+    expect(products.headers.get("cache-control")).toBe("public, max-age=0, must-revalidate");
   });
 
   it("streams the request body for writes", async () => {

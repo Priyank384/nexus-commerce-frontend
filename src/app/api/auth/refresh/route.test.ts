@@ -51,6 +51,7 @@ describe("POST /api/auth/refresh", () => {
       data: null,
     });
     expect(calls).toEqual([]);
+    expect(res.cookies.get("has_session")).toBeUndefined();
   });
 
   it("rotates the cookie and keeps the refresh token out of the body", async () => {
@@ -72,6 +73,8 @@ describe("POST /api/auth/refresh", () => {
     expect(body.data.token).toBe("access");
     expect(body.data.refreshToken).toBeUndefined();
     expect(res.cookies.get("rc")?.value).toBe("new-token");
+    // The proxy only sees path-"/" cookies, so rotation has to refresh the hint too.
+    expect(res.cookies.get("has_session")?.value).toBe("1");
   });
 
   it("clears the cookie when the backend rejects a token that does exist", async () => {
@@ -80,5 +83,35 @@ describe("POST /api/auth/refresh", () => {
     const res = await POST(request());
     expect(res.status).toBe(401);
     expect(res.cookies.get("rc")?.value).toBe("");
+    expect(res.cookies.get("has_session")?.value).toBe("");
+  });
+
+  it("keeps the cookie when the backend is unavailable", async () => {
+    // A 5xx or a cold-starting backend must not sign every shopper out.
+    store.rc = "good-token";
+    upstream(503, { success: false, message: "Service Unavailable" });
+    const res = await POST(request());
+    expect(res.status).toBe(503);
+    expect(res.cookies.get("rc")).toBeUndefined();
+    expect(res.cookies.get("has_session")).toBeUndefined();
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("writes a locked-down cookie", async () => {
+    store.rc = "old-token";
+    upstream(200, {
+      success: true,
+      data: { token: "access", refreshToken: "new-token", user: { id: 7 } },
+    });
+    const res = await POST(request());
+    const cookie = res.cookies.get("rc");
+    expect(cookie?.httpOnly).toBe(true);
+    expect(cookie?.sameSite).toBe("lax");
+    expect(cookie?.path).toBe("/api/auth");
+
+    const hint = res.cookies.get("has_session");
+    expect(hint?.httpOnly).toBe(true);
+    expect(hint?.sameSite).toBe("lax");
+    expect(hint?.path).toBe("/");
   });
 });

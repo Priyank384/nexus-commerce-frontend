@@ -116,28 +116,64 @@ export function RegisterForm() {
       <form onSubmit={handleSubmit(onSubmit)} method="post" className="space-y-4">
         <div>
           <Label htmlFor="name">Name</Label>
-          <Input id="name" autoComplete="name" {...register("name")} />
+          <Input
+            id="name"
+            autoComplete="name"
+            aria-invalid={Boolean(errors.name || serverFieldErrors.name)}
+            aria-describedby={errors.name || serverFieldErrors.name ? "name-error" : undefined}
+            {...register("name")}
+          />
           {(errors.name || serverFieldErrors.name) && (
-            <p className="text-sm text-destructive mt-1">{errors.name?.message ?? serverFieldErrors.name}</p>
+            <p id="name-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.name?.message ?? serverFieldErrors.name}
+            </p>
           )}
         </div>
         <div>
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" autoComplete="email" {...register("email")} />
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            aria-invalid={Boolean(errors.email || serverFieldErrors.email)}
+            aria-describedby={errors.email || serverFieldErrors.email ? "email-error" : undefined}
+            {...register("email")}
+          />
           {(errors.email || serverFieldErrors.email) && (
-            <p className="text-sm text-destructive mt-1">{errors.email?.message ?? serverFieldErrors.email}</p>
+            <p id="email-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.email?.message ?? serverFieldErrors.email}
+            </p>
           )}
         </div>
         <div>
           <Label htmlFor="phone">Phone</Label>
-          <Input id="phone" autoComplete="tel" {...register("phone")} />
-          {errors.phone && <p className="text-sm text-destructive mt-1">{errors.phone.message}</p>}
+          <Input
+            id="phone"
+            autoComplete="tel"
+            aria-invalid={Boolean(errors.phone)}
+            aria-describedby={errors.phone ? "phone-error" : undefined}
+            {...register("phone")}
+          />
+          {errors.phone && (
+            <p id="phone-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.phone.message}
+            </p>
+          )}
         </div>
         <div>
           <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" autoComplete="new-password" {...register("password")} />
+          <Input
+            id="password"
+            type="password"
+            autoComplete="new-password"
+            aria-invalid={Boolean(errors.password || serverFieldErrors.password)}
+            aria-describedby={
+              errors.password || serverFieldErrors.password ? "password-error" : undefined
+            }
+            {...register("password")}
+          />
           {(errors.password || serverFieldErrors.password) && (
-            <p className="text-sm text-destructive mt-1">
+            <p id="password-error" role="alert" className="mt-1 text-sm text-destructive">
               {errors.password?.message ?? serverFieldErrors.password}
             </p>
           )}

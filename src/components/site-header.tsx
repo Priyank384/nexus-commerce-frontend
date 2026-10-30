@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ensureSession, useSession } from "@/lib/auth/session";
+import { clearQueryCache } from "@/lib/query/client";
 import { useHydrated } from "@/lib/use-hydrated";
 import { api } from "@/lib/api/client";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -31,7 +32,7 @@ function useCategoryNav() {
 }
 
 export function SiteHeader() {
-  const { user, hydrated, clear } = useSession();
+  const { user, hydrated, clear, accessToken } = useSession();
   // Flips on the post-hydration render. Published on the header so e2e navigation can
   // wait for React to own the page instead of clicking a server-rendered button that has
   // no handler yet.
@@ -48,9 +49,19 @@ export function SiteHeader() {
   }, [hydrated]);
 
   async function onLogout() {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    clear();
     setMenuOpen(false);
+    // The bearer is sent so the backend can blacklist the still-valid access token;
+    // the refresh token rides in the httpOnly cookie and is revoked by the BFF.
+    const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include", headers });
+    } catch {
+      // A network failure must not strand the shopper in a signed-in UI; the local
+      // session is cleared either way and the cookie expires on its own.
+    } finally {
+      clear();
+      clearQueryCache();
+    }
   }
 
   return (

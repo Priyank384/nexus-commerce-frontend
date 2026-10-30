@@ -94,13 +94,35 @@ function LoginFormInner() {
       <form onSubmit={handleSubmit(onSubmit)} method="post" className="space-y-4">
         <div>
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" autoComplete="email" {...register("email")} />
-          {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? "email-error" : undefined}
+            {...register("email")}
+          />
+          {errors.email && (
+            <p id="email-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.email.message}
+            </p>
+          )}
         </div>
         <div>
           <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" autoComplete="current-password" {...register("password")} />
-          {errors.password && <p className="text-sm text-destructive mt-1">{errors.password.message}</p>}
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby={errors.password ? "password-error" : undefined}
+            {...register("password")}
+          />
+          {errors.password && (
+            <p id="password-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.password.message}
+            </p>
+          )}
         </div>
         <Button type="submit" className="w-full" disabled={!interactive || isSubmitting}>
           {isSubmitting ? "Signing in…" : "Log in"}

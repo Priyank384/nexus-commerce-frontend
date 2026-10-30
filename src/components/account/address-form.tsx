@@ -34,35 +34,87 @@ export function AddressForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <Label htmlFor="acct-addr-label">Label</Label>
-          <Input id="acct-addr-label" placeholder="Home, Work…" {...register("label")} />
-          {errors.label ? <p className="mt-1 text-sm text-destructive">{errors.label.message}</p> : null}
+          <Input
+            id="acct-addr-label"
+            placeholder="Home, Work…"
+            aria-invalid={Boolean(errors.label)}
+            aria-describedby={errors.label ? "acct-addr-label-error" : undefined}
+            {...register("label")}
+          />
+          {errors.label ? (
+            <p id="acct-addr-label-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.label.message}
+            </p>
+          ) : null}
         </div>
         <div className="sm:col-span-2">
           <Label htmlFor="acct-addr-name">Recipient name</Label>
-          <Input id="acct-addr-name" autoComplete="name" {...register("recipientName")} />
+          <Input
+            id="acct-addr-name"
+            autoComplete="name"
+            aria-invalid={Boolean(errors.recipientName)}
+            aria-describedby={errors.recipientName ? "acct-addr-name-error" : undefined}
+            {...register("recipientName")}
+          />
           {errors.recipientName ? (
-            <p className="mt-1 text-sm text-destructive">{errors.recipientName.message}</p>
+            <p id="acct-addr-name-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.recipientName.message}
+            </p>
           ) : null}
         </div>
         <div className="sm:col-span-2">
           <Label htmlFor="acct-addr-line1">Address line 1</Label>
-          <Input id="acct-addr-line1" autoComplete="address-line1" {...register("line1")} />
-          {errors.line1 ? <p className="mt-1 text-sm text-destructive">{errors.line1.message}</p> : null}
+          <Input
+            id="acct-addr-line1"
+            autoComplete="address-line1"
+            aria-invalid={Boolean(errors.line1)}
+            aria-describedby={errors.line1 ? "acct-addr-line1-error" : undefined}
+            {...register("line1")}
+          />
+          {errors.line1 ? (
+            <p id="acct-addr-line1-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.line1.message}
+            </p>
+          ) : null}
         </div>
         <div className="sm:col-span-2">
           <Label htmlFor="acct-addr-line2">Address line 2 (optional)</Label>
           <Input id="acct-addr-line2" autoComplete="address-line2" {...register("line2")} />
-          {errors.line2 ? <p className="mt-1 text-sm text-destructive">{errors.line2.message}</p> : null}
+          {errors.line2 ? (
+            <p id="acct-addr-line2-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.line2.message}
+            </p>
+          ) : null}
         </div>
         <div>
           <Label htmlFor="acct-addr-city">City</Label>
-          <Input id="acct-addr-city" autoComplete="address-level2" {...register("city")} />
-          {errors.city ? <p className="mt-1 text-sm text-destructive">{errors.city.message}</p> : null}
+          <Input
+            id="acct-addr-city"
+            autoComplete="address-level2"
+            aria-invalid={Boolean(errors.city)}
+            aria-describedby={errors.city ? "acct-addr-city-error" : undefined}
+            {...register("city")}
+          />
+          {errors.city ? (
+            <p id="acct-addr-city-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.city.message}
+            </p>
+          ) : null}
         </div>
         <div>
           <Label htmlFor="acct-addr-state">State</Label>
-          <Input id="acct-addr-state" autoComplete="address-level1" {...register("state")} />
-          {errors.state ? <p className="mt-1 text-sm text-destructive">{errors.state.message}</p> : null}
+          <Input
+            id="acct-addr-state"
+            autoComplete="address-level1"
+            aria-invalid={Boolean(errors.state)}
+            aria-describedby={errors.state ? "acct-addr-state-error" : undefined}
+            {...register("state")}
+          />
+          {errors.state ? (
+            <p id="acct-addr-state-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.state.message}
+            </p>
+          ) : null}
         </div>
         <div>
           <Label htmlFor="acct-addr-postal">PIN code</Label>
@@ -70,16 +122,31 @@ export function AddressForm({
             id="acct-addr-postal"
             autoComplete="postal-code"
             inputMode="numeric"
+            aria-invalid={Boolean(errors.postalCode)}
+            aria-describedby={errors.postalCode ? "acct-addr-postal-error" : undefined}
             {...register("postalCode")}
           />
           {errors.postalCode ? (
-            <p className="mt-1 text-sm text-destructive">{errors.postalCode.message}</p>
+            <p id="acct-addr-postal-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.postalCode.message}
+            </p>
           ) : null}
         </div>
         <div>
           <Label htmlFor="acct-addr-phone">Phone</Label>
-          <Input id="acct-addr-phone" type="tel" autoComplete="tel" {...register("phone")} />
-          {errors.phone ? <p className="mt-1 text-sm text-destructive">{errors.phone.message}</p> : null}
+          <Input
+            id="acct-addr-phone"
+            type="tel"
+            autoComplete="tel"
+            aria-invalid={Boolean(errors.phone)}
+            aria-describedby={errors.phone ? "acct-addr-phone-error" : undefined}
+            {...register("phone")}
+          />
+          {errors.phone ? (
+            <p id="acct-addr-phone-error" role="alert" className="mt-1 text-sm text-destructive">
+              {errors.phone.message}
+            </p>
+          ) : null}
         </div>
       </div>
 

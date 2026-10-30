@@ -1,3 +1,4 @@
+import { cacheLife, cacheTag } from "next/cache";
 import { backendUrl } from "@/lib/api/backend";
 import type { components } from "@/lib/api/schema";
 
@@ -58,12 +59,35 @@ export type CatalogQuery = {
  * Server-side reads for the catalogue. The browser client in ../api/client.ts points at the
  * BFF because it has no backend origin; a server component does, so it goes straight to Spring
  * and skips a hop. Public endpoints only — anything carrying a bearer belongs in a client.
+ *
+ * Every exported reader is wrapped in `"use cache"`: the catalogue changes on admin action,
+ * not per visitor, so one upstream call serves every shopper until the tag is revalidated.
+ * Callers must be request-time (a Suspense hole or a dynamic route) — otherwise the build
+ * would try to reach the backend without one.
  */
 async function read<T>(path: string, query?: URLSearchParams): Promise<T> {
   const url = new URL(path, backendUrl());
   if (query && query.toString()) url.search = query.toString();
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url);
   const body = (await res.json().catch(() => null)) as Envelope<T> | null;
+  if (!res.ok || !body?.success) {
+    throw new CatalogError(
+      body?.error || body?.message || `Catalogue request failed (${res.status})`,
+      res.status,
+    );
+  }
+  return body.data;
+}
+
+/**
+ * For lookups where "absent" is a normal answer. A thrown error cannot signal 404 here: Next
+ * replays errors that cross a `"use cache"` boundary as reconstructed ones, so the caller's
+ * `instanceof CatalogError` no longer holds and the page would render a 500 instead.
+ */
+async function readOptional<T>(path: string): Promise<T | null> {
+  const res = await fetch(new URL(path, backendUrl()));
+  const body = (await res.json().catch(() => null)) as Envelope<T> | null;
+  if (res.status === 404) return null;
   if (!res.ok || !body?.success) {
     throw new CatalogError(
       body?.error || body?.message || `Catalogue request failed (${res.status})`,
@@ -87,7 +111,12 @@ export function apply(query: URLSearchParams, params: CatalogQuery) {
   return query;
 }
 
-export function searchProducts(params: CatalogQuery) {
+export async function searchProducts(params: CatalogQuery) {
+  "use cache";
+  // A shopper expects an admin price edit to show up quickly, but not instantly — the
+  // catalogue is the same for everyone, so a minute of sharing is free.
+  cacheLife("minutes");
+  cacheTag("products");
   return read<ProductPage>("/api/v1/products/search", apply(new URLSearchParams(), params));
 }
 
@@ -96,19 +125,33 @@ export function searchProductsSlice(params: CatalogQuery, size: number, page = 0
   return searchProducts({ ...params, size, page });
 }
 
-export function getProductBySlug(slug: string) {
-  return read<ProductListItem>(`/api/v1/products/slug/${encodeURIComponent(slug)}`);
+/** `null` means the backend has no such slug; a backend failure still throws. */
+export async function getProductBySlug(slug: string): Promise<ProductListItem | null> {
+  "use cache";
+  cacheLife("minutes");
+  // Tag per product as well, so a single edit can expire only that page later.
+  cacheTag("products", `product:${slug}`);
+  return readOptional<ProductListItem>(`/api/v1/products/slug/${encodeURIComponent(slug)}`);
 }
 
-export function getCategoryTree() {
+export async function getCategoryTree() {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("categories");
   return read<CategoryNode[]>("/api/v1/categories/tree");
 }
 
-export function getFacetSizes() {
+export async function getFacetSizes() {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("products");
   return read<string[]>("/api/v1/products/facets/sizes");
 }
 
-export function getFacetColors() {
+export async function getFacetColors() {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("products");
   return read<string[]>("/api/v1/products/facets/colors");
 }
 

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Inter_Tight } from "next/font/google";
 import { Providers } from "./providers";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
 import "./globals.css";
 
 // The variable names are load-bearing: @theme inline maps Tailwind's font-sans and
@@ -23,12 +24,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Absolute URLs for canonicals, OG images and the sitemap all resolve against this.
+  metadataBase: new URL(siteUrl()),
   title: {
-    default: "Plain Thread",
-    template: "%s · Plain Thread",
+    default: `${SITE_NAME} — considered wardrobe staples`,
+    template: `%s · ${SITE_NAME}`,
   },
-  description:
-    "Considered wardrobe staples in natural fibres — menswear and womenswear made to be worn for years.",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  // Deliberately no generic `index`/`follow` here: indexing is already the default, and
+  // Next tags every 404 with `noindex` — an explicit root directive would ship a second,
+  // conflicting robots tag on not-found responses. Only the Googlebot preview opt-in remains.
+  robots: {
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
+  formatDetection: { telephone: false, address: false, email: false },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -42,8 +52,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="min-h-full flex flex-col">
         <Providers>
+          <a
+            href="#content"
+            className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:ring-1 focus:ring-border"
+          >
+            Skip to content
+          </a>
           <SiteHeader />
-          <main className="shell-x flex-1 py-10">{children}</main>
+          {/* tabIndex -1 lets the skip link move focus here without adding the main
+              region to the tab order. */}
+          <main id="content" tabIndex={-1} className="shell-x flex-1 py-10 outline-none">
+            {children}
+          </main>
           <SiteFooter />
         </Providers>
       </body>

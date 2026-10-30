@@ -1,0 +1,25 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/lib/auth/session";
+import { AdminShell } from "@/components/admin/admin-shell";
+
+// Same client-side guard pattern as UserGate, plus a role check.
+// Real authorization is on the backend (ROLE_ADMIN) — this is UX.
+export function AdminGate({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const { user, hydrated } = useSession();
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!user) {
+      const here = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/admin";
+      router.replace(`/login?next=${encodeURIComponent(here)}`);
+    } else if (user.role !== "ADMIN") {
+      router.replace("/");
+    }
+  }, [hydrated, user, router]);
+  if (!hydrated) return <div className="text-muted-foreground">Loading…</div>;
+  if (!user || user.role !== "ADMIN") return null;
+  return <AdminShell>{children}</AdminShell>;
+}

@@ -18,14 +18,17 @@ test("bag page: quantity changes update the total, remove empties the bag", asyn
     .locator("li")
     .filter({ has: page.getByRole("button", { name: /Increase quantity of/ }) })
     .first();
-  const quantity = line.locator("span[aria-live='polite']");
+  const quantity = line.locator("span.tabular-nums");
+  const announcement = line.locator("span[aria-live='polite']");
   const subtotal = main.locator("dl").filter({ hasText: "Subtotal" }).locator("dd").first();
 
   await expect(quantity).toHaveText("1");
+  await expect(announcement).toHaveText(/quantity 1$/);
   const before = await subtotal.innerText();
 
   await line.getByRole("button", { name: /Increase quantity of/ }).click();
   await expect(quantity).toHaveText("2");
+  await expect(announcement).toHaveText(/quantity 2$/);
   await expect(subtotal).not.toHaveText(before);
 
   await line.getByRole("button", { name: /Remove .* from bag/ }).click();

@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "./admin";
+import { expect, test, type APIRequestContext } from "@playwright/test";
+import { adminCredentials, loginAsAdmin } from "./admin";
 import { visit } from "./visit";
 
 // Requires the ADMIN account bootstrapped by the backend and both servers running.
@@ -9,6 +9,31 @@ const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=",
   "base64",
 );
+
+/**
+ * A failed assertion must not seed the next run with stray pieces. Teardown goes over the
+ * API: clicking the rows used to race the table's own refetch, and any failure before the
+ * cleanup left every fixture behind.
+ */
+async function removeFixtures(request: APIRequestContext) {
+  const { email, password } = adminCredentials();
+  const login = await request.post("/api/auth/login", { data: { email, password } });
+  expect(login.ok()).toBeTruthy();
+  const token = ((await login.json()) as { data?: { token?: string } }).data?.token;
+  expect(token).toBeTruthy();
+  const headers = { Authorization: `Bearer ${token}` };
+
+  const list = await request.get("/api/v1/admin/products?size=100&q=E2E%20Linen%20Shirt", { headers });
+  expect(list.ok()).toBeTruthy();
+  const fixtures = ((await list.json()) as { data?: { content?: { id: number }[] } }).data?.content ?? [];
+  for (const fixture of fixtures) {
+    // Another run may have removed it between the read and the delete.
+    const deleted = await request.delete(`/api/v1/products/${fixture.id}`, { headers });
+    expect([200, 204, 404]).toContain(deleted.status());
+  }
+}
+
+test.afterAll(async ({ request }) => removeFixtures(request));
 
 test("admin lands on a dashboard with live storefront totals", async ({ page }) => {
   await loginAsAdmin(page);
@@ -94,9 +119,7 @@ test("an admin builds a nested category, hits the delete guard, and flattens it"
   await expect(main.getByText(childName, { exact: true })).toHaveCount(0);
 });
 
-test("an admin builds a piece with six variants and four images in one submit", async ({
-  page,
-}) => {
+test("an admin builds a piece with six variants and four images in one submit", async ({ page }) => {
   test.setTimeout(150_000);
   await loginAsAdmin(page);
   await visit(page, "/admin/products");
@@ -156,32 +179,27 @@ test("an admin builds a piece with six variants and four images in one submit", 
 
   // Taking a piece off sale: the blank box has to become an explicit clear on the wire.
   const productId = Number(new URL(page.url()).pathname.split("/").pop());
-  const save = page.waitForRequest(
-    (request) =>
-      request.url().endsWith(`/api/v1/products/${productId}`) && request.method() === "PUT",
+  const save = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/api/v1/products/${productId}`) &&
+      response.request().method() === "PUT",
   );
   await page.getByLabel("Compare-at price (₹)", { exact: true }).fill("");
   await page.getByRole("button", { name: "Save changes" }).click();
-  const body = (await save).postDataJSON() as { clearCompareAtPrice?: boolean };
-  expect(body.clearCompareAtPrice).toBe(true);
+  const saved = (await save).request();
+  const body = saved.postDataJSON() as { clearCompareAtPrice?: boolean } | null;
+  expect(body, `${saved.method()} ${saved.url()} · ${saved.postData() ?? "no body"}`).not.toBeNull();
+  expect(body?.clearCompareAtPrice).toBe(true);
 
-  // Leave the catalogue as it was found. Matches every sweep fixture, including any a
-  // previous failed run left behind.
+  // Deleting the piece from the table also proves the row goes away. It is on the first
+  // page because the catalogue is newest-first.
   await page
     .getByRole("navigation", { name: "Admin sections" })
     .getByRole("link", { name: "Products" })
     .click();
-  const search = page.getByPlaceholder("Search by title, brand, material…");
-  await search.fill("E2E Linen Shirt");
-
-  const fixtures = page.getByRole("row").filter({ hasText: "E2E Linen Shirt" });
-  await expect(fixtures.first()).toBeVisible();
-  for (let remaining = await fixtures.count(); remaining > 0; remaining -= 1) {
-    await fixtures
-      .first()
-      .getByRole("button", { name: /^Delete E2E Linen Shirt/ })
-      .click();
-    await page.getByRole("button", { name: "Remove", exact: true }).click();
-    await expect(fixtures).toHaveCount(remaining - 1);
-  }
+  const row = page.getByRole("row").filter({ hasText: title });
+  await expect(row).toBeVisible();
+  await row.getByRole("button", { name: `Delete ${title}` }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Remove", exact: true }).click();
+  await expect(row).toHaveCount(0);
 });

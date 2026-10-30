@@ -1,14 +1,34 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { Skeleton } from "@/components/ui/skeleton";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ProductCard } from "@/components/catalog/product-card";
+import { FOUR_UP_SIZES, ProductCard } from "@/components/catalog/product-card";
 import { getCategoryTree, searchProducts, toFacetRoots } from "@/lib/catalog/server";
+import { SITE_DESCRIPTION, SITE_LOCALE, SITE_NAME } from "@/lib/site";
 
-export const metadata = {
-  title: { absolute: "Plain Thread — considered wardrobe staples" },
+// Open Graph deliberately lives on the page, not the root layout: Next 16 blocks metadata
+// resolution for dynamic-param routes when the layout carries an openGraph object.
+export const metadata: Metadata = {
+  title: { absolute: `${SITE_NAME} — considered wardrobe staples` },
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: SITE_LOCALE,
+    url: "/",
+    title: `${SITE_NAME} — considered wardrobe staples`,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary",
+    title: `${SITE_NAME} — considered wardrobe staples`,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 const PROMISES = [
@@ -81,6 +101,9 @@ function DepartmentsSkeleton() {
 }
 
 async function Departments() {
+  // Request-time hole: the read is cached ("use cache"), but resolving it during the
+  // build would require a live backend, which CI deliberately does not have.
+  await connection();
   const departments = toFacetRoots(await getCategoryTree());
   if (!departments.length) return null;
 
@@ -137,6 +160,7 @@ function NewInSkeleton() {
 }
 
 async function NewIn() {
+  await connection();
   const newest = await searchProducts({ sort: "createdAt,desc", size: 4, page: 0 });
   if (!newest.content.length) return null;
 
@@ -155,7 +179,12 @@ async function NewIn() {
       </div>
       <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4">
         {newest.content.map((product, index) => (
-          <ProductCard key={product.id} product={product} priority={index === 0} />
+          <ProductCard
+            key={product.id}
+            product={product}
+            priority={index === 0}
+            sizes={FOUR_UP_SIZES}
+          />
         ))}
       </div>
     </section>

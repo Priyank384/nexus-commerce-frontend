@@ -21,7 +21,7 @@ test.describe("catalogue listing", () => {
     await large.click();
     await expect(page).toHaveURL(/gender=men&sizes=l/);
     await expect(page.getByRole("link", { name: "L", exact: true })).toHaveAttribute(
-      "aria-pressed",
+      "aria-current",
       "true",
     );
 

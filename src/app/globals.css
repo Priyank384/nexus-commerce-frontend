@@ -67,7 +67,10 @@
   --accent-foreground: oklch(0.24 0.012 65);
   --destructive: oklch(0.55 0.19 25);
   --border: oklch(0.9 0.006 85);
-  --input: oklch(0.9 0.006 85);
+  /* Form controls are interactive, so their edge has to clear WCAG 1.4.11 (3:1 against
+     the page). The old 0.9 read as 1.2:1 — invisible on a bright screen. Decorative
+     dividers keep the lighter --border. */
+  --input: oklch(0.58 0.008 75);
   --ring: oklch(0.45 0.015 65);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -102,7 +105,7 @@
   --accent-foreground: oklch(0.96 0.004 85);
   --destructive: oklch(0.7 0.19 22);
   --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
+  --input: oklch(1 0 0 / 30%);
   --ring: oklch(0.6 0.01 75);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -154,5 +157,23 @@
   h3 {
     @apply font-heading tracking-tight;
     font-weight: 500;
+  }
+  /* One visible focus treatment for links, summaries and native controls that do not
+     opt into the component kit's ring. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* Honour the OS setting: carousels, hover lifts and toast slides all become instant. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

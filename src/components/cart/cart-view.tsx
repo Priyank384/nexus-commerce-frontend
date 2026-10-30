@@ -145,8 +145,9 @@ function CartLineRow({ line }: { line: CartLine }) {
             >
               <Minus aria-hidden className="size-3.5" />
             </button>
-            <span className="w-8 text-center text-sm tabular-nums" aria-live="polite">
-              {quantity}
+            <span className="w-8 text-center text-sm tabular-nums">{quantity}</span>
+            <span aria-live="polite" className="sr-only">
+              {line.productName} quantity {quantity}
             </span>
             <button
               type="button"

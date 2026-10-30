@@ -16,8 +16,8 @@ import {
 import { ProductGallery, type GalleryImage } from "./product-gallery";
 import { BagDrawer, type CartSnapshot } from "./bag-drawer";
 import { WishlistButton } from "./wishlist-button";
-import { api } from "@/lib/api/client";
-import { toAuthFailure } from "@/lib/api/errors";
+import { HttpError } from "@/lib/api/errors";
+import { useCartMutations } from "@/lib/cart/queries";
 import { discountPercent, formatPrice, groupVariantsByColor, imageUrlForColor } from "@/lib/catalog/format";
 import type { ProductListItem } from "@/lib/catalog/server";
 
@@ -52,7 +52,9 @@ export function ProductPurchase({ product }: { product: ProductListItem }) {
   const [quantity, setQuantity] = useState(1);
   const [cart, setCart] = useState<CartSnapshot | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
+  // Shares the cart cache with the rest of the app, so the drawer, the badge and /cart
+  // all see the same server snapshot instead of each holding a private copy.
+  const { addItem } = useCartMutations();
 
   const color = colors.find((entry) => entry.name === colorName) ?? colors[0] ?? null;
   // A size chosen for another colour may not exist (or may be sold out) here, so the effective
@@ -73,31 +75,21 @@ export function ProductPurchase({ product }: { product: ProductListItem }) {
 
   async function addToBag() {
     if (!product.id) return;
-    setAdding(true);
     try {
-      const { data, error, response } = await api.POST("/api/v1/cart/items", {
-        body: {
-          productId: product.id,
-          quantity,
-          ...(variant?.id ? { variantId: variant.id } : {}),
-        },
+      const next = await addItem.mutateAsync({
+        productId: product.id,
+        quantity,
+        ...(variant?.id ? { variantId: variant.id } : {}),
       });
-      if (response.status === 401) {
+      setCart(next);
+      setDrawerOpen(true);
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 401) {
         toast.error("Sign in to keep your bag");
         router.push(`/login?next=${encodeURIComponent(pathname)}`);
         return;
       }
-      if (!response.ok || error || !data?.data) {
-        const failure = toAuthFailure(response.status, error ?? null);
-        toast.error(failure.message);
-        return;
-      }
-      setCart(data.data);
-      setDrawerOpen(true);
-    } catch {
-      toast.error("Could not reach the store. Try again.");
-    } finally {
-      setAdding(false);
+      toast.error(error instanceof HttpError ? error.message : "Could not reach the store. Try again.");
     }
   }
 
@@ -220,6 +212,7 @@ export function ProductPurchase({ product }: { product: ProductListItem }) {
                     }
                   >
                     {entry.size}
+                    {soldOut ? <span className="sr-only"> — sold out</span> : null}
                   </button>
                 );
               })}
@@ -251,8 +244,13 @@ export function ProductPurchase({ product }: { product: ProductListItem }) {
             >
               <Minus aria-hidden className="size-3.5" />
             </button>
-            <span aria-live="polite" className="w-8 text-center text-sm">
+            <span className="w-8 text-center text-sm">
               {quantity}
+            </span>
+            {/* The visible number alone would announce as a bare "2"; the live region
+                says what changed. */}
+            <span aria-live="polite" className="sr-only">
+              Quantity {quantity}
             </span>
             <button
               type="button"
@@ -267,10 +265,10 @@ export function ProductPurchase({ product }: { product: ProductListItem }) {
           <Button
             size="lg"
             className="h-11 flex-1"
-            disabled={stock === 0 || adding}
+            disabled={stock === 0 || addItem.isPending}
             onClick={addToBag}
           >
-            {adding ? "Adding…" : stock === 0 ? "Sold out" : `Add to bag · ${formatPrice(price * quantity)}`}
+            {addItem.isPending ? "Adding…" : stock === 0 ? "Sold out" : `Add to bag · ${formatPrice(price * quantity)}`}
           </Button>
           <WishlistButton
             productId={product.id ?? 0}

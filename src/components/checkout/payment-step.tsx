@@ -31,7 +31,9 @@ export function PaymentStep({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg">Payment</h2>
+        <h2 tabIndex={-1} className="text-lg outline-none">
+          Payment
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {order
             ? `Order #${order.id} is saved. Finish payment whenever you're ready.`
@@ -46,7 +48,7 @@ export function PaymentStep({
       ) : null}
 
       {notice ? (
-        <Alert>
+        <Alert role="status">
           <AlertDescription>{notice}</AlertDescription>
         </Alert>
       ) : null}

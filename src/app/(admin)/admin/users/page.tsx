@@ -24,7 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useSetUserEnabled, useAdminUsers, type AdminUser } from "@/lib/admin/users";
+import { useSetUserEnabled, useSetUserRole, useAdminUsers, type AdminUser } from "@/lib/admin/users";
 import { useSession } from "@/lib/auth/session";
 import { formatOrderDate } from "@/lib/orders/format";
 import { toast } from "sonner";
@@ -93,6 +93,52 @@ function EnableUser({ user }: { user: AdminUser }) {
   );
 }
 
+/** Promoting is the one click that widens someone's blast radius, so it asks first. */
+function ChangeRole({ user }: { user: AdminUser }) {
+  const [open, setOpen] = useState(false);
+  const update = useSetUserRole(user.id!);
+  const promote = user.role !== "ADMIN";
+  const role = promote ? "ADMIN" : "USER";
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button variant="outline" size="sm" />}>
+        {promote ? "Make admin" : "Remove admin"}
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {promote ? `Make ${user.name} an admin?` : `Remove admin rights from ${user.name}?`}
+          </DialogTitle>
+          <DialogDescription>
+            {promote
+              ? "Admins can edit the catalogue, prices, orders, inventory and other accounts. Grant this only to people who need it."
+              : "They keep their account and order history but lose access to the admin console on their next request."}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <Button
+            variant={promote ? "default" : "destructive"}
+            disabled={update.isPending}
+            onClick={() =>
+              update.mutate(role, {
+                onSuccess: () => {
+                  setOpen(false);
+                  toast.success(promote ? `${user.name} is now an admin` : `${user.name} is a shopper again`);
+                },
+                onError: (error) => toast.error(error.message),
+              })
+            }
+          >
+            {update.isPending ? "Saving…" : promote ? "Make admin" : "Remove admin"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function UsersTable({ users, currentUserId }: { users: AdminUser[]; currentUserId?: number }) {
   return (
     <Table>
@@ -103,7 +149,7 @@ function UsersTable({ users, currentUserId }: { users: AdminUser[]; currentUserI
           <TableHead className="hidden sm:table-cell">Joined</TableHead>
           <TableHead>Role</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead className="w-28 text-right">
+          <TableHead className="w-40 text-right">
             <span className="sr-only">Actions</span>
           </TableHead>
         </TableRow>
@@ -136,10 +182,11 @@ function UsersTable({ users, currentUserId }: { users: AdminUser[]; currentUserI
               <TableCell className="text-right">
                 {isSelf ? (
                   <span className="text-xs text-muted-foreground">This is you</span>
-                ) : user.enabled === false ? (
-                  <EnableUser user={user} />
                 ) : (
-                  <DisableUser user={user} />
+                  <div className="flex items-center justify-end gap-2">
+                    <ChangeRole user={user} />
+                    {user.enabled === false ? <EnableUser user={user} /> : <DisableUser user={user} />}
+                  </div>
                 )}
               </TableCell>
             </TableRow>

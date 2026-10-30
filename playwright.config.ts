@@ -12,6 +12,8 @@ export default defineConfig({
   // own budget rather than in an assertion.
   timeout: 60_000,
   retries: process.env.CI ? 2 : 0,
+  // A stray `test.only` left in a spec would silently skip the rest of the suite on CI.
+  forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? "github" : "list",
   globalSetup: "./e2e/warm-routes.ts",
   expect: {
@@ -24,6 +26,8 @@ export default defineConfig({
     baseURL: "http://localhost:3000",
     navigationTimeout: 45_000,
     trace: "on-first-retry",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {

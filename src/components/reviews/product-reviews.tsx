@@ -86,9 +86,14 @@ export function ProductReviews({
       ) : null}
 
       {reviews.isError ? (
-        <p role="alert" className="mt-6 text-sm text-muted-foreground">
-          We could not load the reviews right now.
-        </p>
+        <div className="mt-6 space-y-3">
+          <p role="alert" className="text-sm text-muted-foreground">
+            We could not load the reviews right now.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => void reviews.refetch()}>
+            Try again
+          </Button>
+        </div>
       ) : null}
 
       {reviews.isSuccess && !items.length ? (

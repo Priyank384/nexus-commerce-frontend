@@ -72,7 +72,9 @@ export function DeliveryStep({
       <form onSubmit={handleSubmit(saveNewAddress)} className="space-y-6" noValidate>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg">Delivery address</h2>
+            <h2 tabIndex={-1} className="text-lg outline-none">
+              Delivery address
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">We deliver anywhere in India.</p>
           </div>
           {addresses.length > 0 ? (
@@ -85,51 +87,103 @@ export function DeliveryStep({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Label htmlFor="addr-name">Recipient name</Label>
-            <Input id="addr-name" autoComplete="name" {...register("recipientName")} />
+            <Input
+              id="addr-name"
+              autoComplete="name"
+              aria-invalid={Boolean(errors.recipientName)}
+              aria-describedby={errors.recipientName ? "addr-name-error" : undefined}
+              {...register("recipientName")}
+            />
             {errors.recipientName ? (
-              <p className="mt-1 text-sm text-destructive">{errors.recipientName.message}</p>
+              <p id="addr-name-error" role="alert" className="mt-1 text-sm text-destructive">
+                {errors.recipientName.message}
+              </p>
             ) : null}
           </div>
           <div className="sm:col-span-2">
             <Label htmlFor="addr-line1">Address line 1</Label>
-            <Input id="addr-line1" autoComplete="address-line1" {...register("line1")} />
+            <Input
+              id="addr-line1"
+              autoComplete="address-line1"
+              aria-invalid={Boolean(errors.line1)}
+              aria-describedby={errors.line1 ? "addr-line1-error" : undefined}
+              {...register("line1")}
+            />
             {errors.line1 ? (
-              <p className="mt-1 text-sm text-destructive">{errors.line1.message}</p>
+              <p id="addr-line1-error" role="alert" className="mt-1 text-sm text-destructive">
+                {errors.line1.message}
+              </p>
             ) : null}
           </div>
           <div className="sm:col-span-2">
             <Label htmlFor="addr-line2">Address line 2 (optional)</Label>
             <Input id="addr-line2" autoComplete="address-line2" {...register("line2")} />
             {errors.line2 ? (
-              <p className="mt-1 text-sm text-destructive">{errors.line2.message}</p>
+              <p id="addr-line2-error" role="alert" className="mt-1 text-sm text-destructive">
+                {errors.line2.message}
+              </p>
             ) : null}
           </div>
           <div>
             <Label htmlFor="addr-city">City</Label>
-            <Input id="addr-city" autoComplete="address-level2" {...register("city")} />
+            <Input
+              id="addr-city"
+              autoComplete="address-level2"
+              aria-invalid={Boolean(errors.city)}
+              aria-describedby={errors.city ? "addr-city-error" : undefined}
+              {...register("city")}
+            />
             {errors.city ? (
-              <p className="mt-1 text-sm text-destructive">{errors.city.message}</p>
+              <p id="addr-city-error" role="alert" className="mt-1 text-sm text-destructive">
+                {errors.city.message}
+              </p>
             ) : null}
           </div>
           <div>
             <Label htmlFor="addr-state">State</Label>
-            <Input id="addr-state" autoComplete="address-level1" {...register("state")} />
+            <Input
+              id="addr-state"
+              autoComplete="address-level1"
+              aria-invalid={Boolean(errors.state)}
+              aria-describedby={errors.state ? "addr-state-error" : undefined}
+              {...register("state")}
+            />
             {errors.state ? (
-              <p className="mt-1 text-sm text-destructive">{errors.state.message}</p>
+              <p id="addr-state-error" role="alert" className="mt-1 text-sm text-destructive">
+                {errors.state.message}
+              </p>
             ) : null}
           </div>
           <div>
             <Label htmlFor="addr-postal">PIN code</Label>
-            <Input id="addr-postal" autoComplete="postal-code" inputMode="numeric" {...register("postalCode")} />
+            <Input
+              id="addr-postal"
+              autoComplete="postal-code"
+              inputMode="numeric"
+              aria-invalid={Boolean(errors.postalCode)}
+              aria-describedby={errors.postalCode ? "addr-postal-error" : undefined}
+              {...register("postalCode")}
+            />
             {errors.postalCode ? (
-              <p className="mt-1 text-sm text-destructive">{errors.postalCode.message}</p>
+              <p id="addr-postal-error" role="alert" className="mt-1 text-sm text-destructive">
+                {errors.postalCode.message}
+              </p>
             ) : null}
           </div>
           <div>
             <Label htmlFor="addr-phone">Phone</Label>
-            <Input id="addr-phone" type="tel" autoComplete="tel" {...register("phone")} />
+            <Input
+              id="addr-phone"
+              type="tel"
+              autoComplete="tel"
+              aria-invalid={Boolean(errors.phone)}
+              aria-describedby={errors.phone ? "addr-phone-error" : undefined}
+              {...register("phone")}
+            />
             {errors.phone ? (
-              <p className="mt-1 text-sm text-destructive">{errors.phone.message}</p>
+              <p id="addr-phone-error" role="alert" className="mt-1 text-sm text-destructive">
+                {errors.phone.message}
+              </p>
             ) : null}
           </div>
         </div>
@@ -149,7 +203,9 @@ export function DeliveryStep({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg">Delivery address</h2>
+        <h2 tabIndex={-1} className="text-lg outline-none">
+          Delivery address
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">Choose where this order should go.</p>
       </div>
 
