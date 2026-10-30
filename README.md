@@ -18,7 +18,7 @@ stay painless.
 | `shell-x` | The single horizontal rhythm (`max-width: 90rem`, clamp padding) shared by header, page body and footer so edges always line up. |
 | `--font-sans` | Set by `Geist({ variable: "--font-sans" })` in `layout.tsx`. The name is load-bearing — `@theme inline` maps Tailwind's `font-sans` onto it, so a different variable silently drops the brand typeface. |
 | `--font-heading` | `Inter Tight`, same name coupling. `h1`–`h3` get it (plus `tracking-tight`, weight 500) from a base-layer rule, so headings never need a class. |
-| Theme | `next-themes` with `attribute="class"`: the `.dark` token block in `globals.css` and every `dark:` variant key off `<html class="dark">`. `ThemeToggle` cycles light → dark → system; `<html>` needs `suppressHydrationWarning` because the script rewrites the class before hydration. |
+| Theme | `next-themes` with `attribute="class"`: the `.dark` token block in `globals.css` and every `dark:` variant key off `<html class="dark">`. `ThemeToggle` cycles light → dark → system, and the cycle reads the **stored preference** — deriving it from `resolvedTheme` meant a dark OS resolved "system" to dark, so the first click re-selected "system" and light mode was unreachable. `<html>` needs `suppressHydrationWarning` because the script rewrites the class before hydration. |
 | `EmptyState` | One voice for every "nothing here yet" surface — empty bag, wishlist, order history, a filter that matched nothing. |
 
 ## Stack
@@ -44,6 +44,10 @@ stay painless.
   `PENDING → SHIPPED → DELIVERED` queue and a guarded cancel; inventory search with an
   out-of-stock filter and per-variant stock adjustment; and a minimal user table with
   search and enable/disable.
+- **Production plumbing** — the session and catalogue reads render on the server, a proxy
+  bounces signed-out visitors before the client gate flashes, the BFF refuses oversized uploads,
+  CSP and security headers ship from `next.config.ts`, and sitemap / robots / manifest /
+  JSON-LD / error boundaries cover the crawler and failure surfaces.
 
 ## Architecture — Backend-for-Frontend (BFF)
 
@@ -67,7 +71,58 @@ Because the browser only ever sees this app's origin, **no CORS change on the ba
 needed** under this pattern.
 
 On 401 the typed client calls `/api/auth/refresh` once (single-flight), re-issues the
-original request with the new bearer, and only fails if refresh also fails.
+original request with the new bearer, and only fails if refresh also fails. The retry re-sends
+a rebuilt body: cloning the dispatched request turns JSON into a chunked stream, which loses
+`Content-Length` and makes the body unreadable to tests and proxies, so JSON requests are
+reconstructed from their text instead.
+
+### Session and cached reads
+
+Access tokens live only in memory; on a cold load the header calls `ensureSession()`, which
+shares one `/api/auth/refresh` with any request that fires first, and the BFF re-issues the
+bearer from the `rc` cookie. The cookie is cleared only when refresh answers 401/403 — a 5xx
+from the backend or the proxy must not sign everyone out.
+
+Catalogue pages are server components over `src/lib/catalog/server.ts`, which marks reads with
+`"use cache"` plus `cacheTag("products")` / `cacheTag("categories")`. Any non-GET catalogue
+call that succeeds through the BFF calls `revalidateTag(tag, { expire: 0 })`, so the next page
+view sees the write immediately instead of serving one stale render. User-scoped traffic never
+goes through that cache and is marked `no-store`.
+
+### Guards
+
+`src/proxy.ts` (Next 16's rename of middleware) matches `/account`, `/cart`, `/checkout`,
+`/orders` and `/admin` and redirects to `/login?next=…` when the `has_session` hint cookie is
+missing. The hint is presence-only — it carries no token — so this is navigation UX, not
+authorization: Spring still validates every call, `UserGate` waits for the session, and
+`AdminGate` checks `role === "ADMIN"` before the console renders.
+
+### BFF hardening
+
+The proxy caps request bodies at 10 MB (via `Content-Length`, before reading the stream),
+strips hop-by-hop headers, never forwards `cookie`, `set-cookie` or client identity headers
+(`x-forwarded-*`, `forwarded`, `x-real-ip`) upstream, and asks upstream for an identity body
+so a compressed response cannot reach the browser already-decoded. Responses under `auth/`,
+`cart`, `orders`, `users`, `addresses`, `wishlist`, `admin/` and `payments/` are forced
+`no-store`; everything else defaults to `public, max-age=0, must-revalidate`.
+
+### Security headers
+
+`next.config.ts` serves a CSP on every route: same-origin by default, Razorpay's checkout
+script/frame/connect origins, `'unsafe-inline'` for Next's bootstrap script and inline styles,
+and `'unsafe-eval'` only in development. Also `nosniff`, `Referrer-Policy:
+strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, a restrictive `Permissions-Policy`,
+HSTS in production only, and `poweredByHeader: false`. `NEXT_IMAGE_HOSTS` entries are validated
+as bare hostnames — a scheme or wildcard would break the build or turn the optimizer into an
+SSRF vector.
+
+### SEO and failure surfaces
+
+`src/lib/site.ts` resolves the canonical origin once (`NEXT_PUBLIC_SITE_URL` →
+Vercel's `VERCEL_PROJECT_PRODUCTION_URL` → `http://localhost:3000`); metadata, canonicals,
+Open Graph, `sitemap.ts`, `robots.ts`, `manifest.ts` and the product JSON-LD all read it.
+Signed-in segments set `robots: { index: false }`, and `error.tsx`, `global-error.tsx` and
+`not-found.tsx` give every failure a branded page instead of the framework default.
 
 ## Prereqs
 
@@ -92,9 +147,9 @@ npm run dev                # http://localhost:3000
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run codegen` | Regenerate `src/lib/api/schema.d.ts` from a running backend's `/v3/api-docs`. Requires Spring on `API_BASE_URL` (default `http://localhost:3001`). |
-| `npm test` | Vitest once (jsdom + MSW) |
+| `npm test` | Vitest once (jsdom + MSW) — components, route handlers, `proxy.ts` |
 | `npm run test:watch` | Vitest watch |
-| `npm run test:e2e` | Playwright against `next dev` and Spring on 3001 |
+| `npm run test:e2e` | Playwright via `scripts/e2e.mjs`, which reads the backend `.env` and pins `API_BASE_URL` |
 
 ## Env
 
@@ -102,7 +157,8 @@ npm run dev                # http://localhost:3000
 |-----|---------|-------|
 | `API_BASE_URL` | `http://localhost:3001` | Server-only; used by the BFF proxy and `/uploads` rewrite. Never prefixed `NEXT_PUBLIC_`. |
 | `PORT` | `3000` | `next dev` / `next start` listen port. |
-| `NEXT_IMAGE_HOSTS` | empty | Comma-separated extra hostnames for `next/image` (production: the R2 public host). Read at build time. |
+| `NEXT_IMAGE_HOSTS` | empty | Comma-separated extra hostnames for `next/image` — hostnames only, no scheme or wildcard (production: the Supabase Storage public host). Read at build time, so changing it needs a redeploy. |
+| `NEXT_PUBLIC_SITE_URL` | Vercel production URL, else `http://localhost:3000` | Canonical origin for `<link rel="canonical">`, Open Graph URLs, `sitemap.ts`, `robots.ts` and JSON-LD. A bare origin (`https://plainthread.example`); a trailing slash is trimmed. |
 
 No backend secrets live here. The Spring `.env` (`JWT_SECRET`, MySQL creds, New Relic key)
 stays in the backend workspace.
@@ -112,18 +168,24 @@ stays in the backend workspace.
 ```
 src/
 ├── app/
-│   ├── (public)/       /, /products — browse without auth
+│   ├── (public)/       /, /products, /products/[slug] — browse without auth
 │   ├── (auth)/         /login, /register
-│   ├── (user)/         /cart, /orders — requires bearer
-├── (admin)/            /admin, /admin/products, /admin/categories, /admin/orders,
-│                      /admin/inventory, /admin/users — requires ROLE_ADMIN
+│   ├── (user)/         /cart, /checkout, /account, /orders — requires bearer
+│   ├── (admin)/        /admin, /admin/products, /admin/categories, /admin/orders,
+│   │                   /admin/inventory, /admin/users — requires ROLE_ADMIN
 │   ├── api/
 │   │   ├── auth/       login / refresh / logout route handlers (cookie BFF)
-│   │   └── v1/         generic /api/v1/[...path] proxy
-│   ├── layout.tsx      providers + header + footer
-│   └── providers.tsx   QueryClientProvider + ThemeProvider (next-themes) + sonner Toaster
+│   │   └── v1/         generic /api/v1/[...path] proxy (size cap, header stripping, tags)
+│   ├── layout.tsx      metadata, fonts, providers, header + footer
+│   ├── providers.tsx   QueryClientProvider + ThemeProvider (next-themes) + sonner Toaster
+│   ├── error.tsx       route error boundary (global-error.tsx catches the root layout)
+│   ├── not-found.tsx   branded 404
+│   └── robots.ts, sitemap.ts, manifest.ts
+├── proxy.ts            signed-out redirect for /account, /cart, /checkout, /orders, /admin
 ├── components/
-│   ├── ui/             shadcn primitives
+│   ├── ui/             shadcn primitives (only the ones still used)
+│   ├── admin/          admin-gate.tsx (ROLE_ADMIN check) and product-editor.tsx
+│   ├── seo/            product-json-ld.tsx
 │   ├── site-header.tsx  client header: session-aware (calls /api/auth/refresh on mount) and
 │   │                    renders the category mega-menu from GET /api/v1/categories/tree
 │   ├── site-footer.tsx  server footer (brand block + Shop/Account columns)
@@ -132,15 +194,17 @@ src/
 ├── lib/
 │   ├── api/            backend.ts, client.ts (typed openapi-fetch + 401 retry), schema.d.ts
 │   ├── auth/           jwt.ts (decode only), session.ts (Zustand memory store)
-│   ├── admin/          typed queries/mutations for products, categories, orders, users
-│   ├── catalog/        catalogue + product-detail queries and formatting
-│   ├── orders/         order queries and shared status/payment/date formatting
-│   └── …               cart, wishlist, reviews, addresses, checkout
+│   ├── query/          client.ts — registered QueryClient, cleared when the identity changes
+│   ├── catalog/        server.ts ("use cache" + product/category tags) and client queries
+│   ├── site.ts         brand strings + canonical origin resolution
+│   ├── admin/ orders/ cart/ wishlist/ reviews/ addresses/ checkout/ account/
+│   └── …
 └── test/               setup.ts + mocks/handlers.ts + mocks/server.ts (MSW)
 e2e/                    Playwright specs
+scripts/e2e.mjs         parses ../NexusCommerce/.env, pins API_BASE_URL, runs Playwright
 playwright.config.ts    baseURL http://localhost:3000, spawns `npm run dev`
 vitest.config.ts        jsdom env, MSW server bootstraps in setup.ts
-next.config.ts          /uploads/:path* rewrite so product images resolve via the BFF
+next.config.ts          CSP + security headers, /uploads rewrite, validated image hosts
 ```
 
 ## Route groups
@@ -149,12 +213,15 @@ next.config.ts          /uploads/:path* rewrite so product images resolve via th
   (`/products?category=mens-denim`), because names repeat across roots (Men/Denim and
   Women/Denim) and Spring resolves the filter with `findBySlugIgnoreCase`.
 - **`(auth)`** — signed-out entry points (login, register).
-- **`(user)`** — layout redirects to `/login` when the session is empty.
-- **`(admin)`** — layout additionally checks `user.role === "ADMIN"`. The shell renders the
-  admin nav; each screen talks only to endpoints Spring already gates with `ROLE_ADMIN`.
+- **`(user)`** — `UserGate` waits for the session and redirects to `/login` when it is empty;
+  `proxy.ts` has usually redirected already, before any client bundle runs.
+- **`(admin)`** — `AdminGate` checks `user.role === "ADMIN"` before the console renders. The
+  shell renders the admin nav; each screen talks only to endpoints Spring already gates with
+  `ROLE_ADMIN`.
 
-Guards are client-side UX only. Real authorization is enforced by Spring; the BFF forwards
-whatever bearer the client has and lets 403/401 bubble up.
+Guards are UX only — the proxy reads a presence-only hint cookie and the gates read the decoded
+token. Real authorization is enforced by Spring; the BFF forwards whatever bearer the client has
+and lets 403/401 bubble up.
 
 ## Adding a new backend call
 
@@ -191,13 +258,20 @@ with the envelope — no endpoint returns 204.
 
   The live Razorpay specs skip themselves when `RAZORPAY_*` keys are absent.
 
+  Specs are written to be re-runnable: the admin flow creates uniquely-titled pieces and
+  removes them through the API in `test.afterAll`, so a failed assertion does not seed the next
+  run with stray catalogue rows. Playwright keeps screenshots and video only on failure and
+  `forbidOnly` is on in CI, so a stray `test.only` cannot silently skip the suite.
+
 ## Deploy
 
 Vercel, with the Spring backend on Render (see the backend repo's `DEPLOYMENT.md`).
 
 1. Import this repository into Vercel (framework preset **Next.js**, branch `main`).
-2. Set `API_BASE_URL` to the deployed API origin and `NEXT_IMAGE_HOSTS` to the R2 public
-   hostname (no scheme). Changing the image hosts needs a redeploy — remote patterns are
-   resolved at build time.
-3. Deploy. No backend secret lives in Vercel; the BFF cookie is httpOnly, `SameSite=Lax`
-   and `Secure` on HTTPS, and never leaves this origin.
+2. Set `API_BASE_URL` to the deployed API origin, `NEXT_IMAGE_HOSTS` to the Supabase Storage
+   public hostname (no scheme), and `NEXT_PUBLIC_SITE_URL` to the canonical storefront origin
+   so canonicals, Open Graph and the sitemap point at the real domain. Changing the image hosts
+   needs a redeploy — remote patterns are resolved at build time.
+3. Deploy. No backend secret lives in Vercel; the BFF cookie is httpOnly, `SameSite=Lax` and
+   `Secure` on HTTPS, and never leaves this origin. Security headers — including HSTS — are
+   emitted by `next.config.ts` and only take effect over HTTPS, which Vercel provides.
