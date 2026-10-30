@@ -31,7 +31,7 @@ export default function GlobalError({
         }}
       >
         <p style={{ fontSize: "0.75rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "#6b6b6b" }}>
-          Plain Thread
+          Nexus Commerce
         </p>
         <h1 style={{ fontSize: "1.5rem", fontWeight: 600, margin: 0 }}>The shop couldn&apos;t load</h1>
         <p style={{ maxWidth: "28rem", fontSize: "0.875rem", color: "#4a4a4a", margin: 0 }}>

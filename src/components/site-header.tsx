@@ -68,7 +68,7 @@ export function SiteHeader() {
     <header data-hydrated={interactive} className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
       <div className="shell-x flex h-16 items-center gap-8">
         <Link href="/" className="text-sm font-medium tracking-[0.3em] uppercase">
-          Plain Thread
+          Nexus Commerce
         </Link>
 
         <nav className="hidden md:flex items-center gap-7" aria-label="Primary">

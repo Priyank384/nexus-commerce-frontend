@@ -3,7 +3,7 @@
  * host cannot drift between them. `NEXT_PUBLIC_SITE_URL` is the only var an operator sets;
  * Vercel's own production URL is the fallback so a deploy without it still emits absolute links.
  */
-export const SITE_NAME = "Plain Thread";
+export const SITE_NAME = "Nexus Commerce";
 export const SITE_DESCRIPTION =
   "Considered wardrobe staples in natural fibres — menswear and womenswear made to be worn for years.";
 export const SITE_LOCALE = "en_IN";

@@ -107,7 +107,7 @@ export async function openRazorpay(options: {
       key: options.keyId,
       amount: options.amount,
       currency: options.currency,
-      name: "Plain Thread",
+      name: "Nexus Commerce",
       description: `Order #${options.orderId}`,
       order_id: options.razorpayOrderId,
       prefill: options.prefill,

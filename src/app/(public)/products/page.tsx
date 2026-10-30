@@ -21,11 +21,11 @@ import {
 type SearchParamsPromise = Promise<Record<string, string | string[] | undefined>>;
 
 function descriptionFor(query: CatalogQuery): string {
-  if (query.keyword) return `Pieces matching “${query.keyword}” at Plain Thread.`;
+  if (query.keyword) return `Pieces matching “${query.keyword}” at Nexus Commerce.`;
   if (query.category) return `The ${query.category} collection in natural fibres, made to be worn for years.`;
   if (query.gender === "men") return "Menswear staples in natural fibres — cut to last, not to trend.";
   if (query.gender === "women") return "Womenswear staples in natural fibres — cut to last, not to trend.";
-  return "Browse the full Plain Thread catalogue by department, size, colour and price.";
+  return "Browse the full Nexus Commerce catalogue by department, size, colour and price.";
 }
 
 /**

@@ -75,7 +75,7 @@ test.describe("home", () => {
   test("hero, departments and new arrivals all render", async ({ page }) => {
     await visit(page, "/");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Considered staples");
-    await expect(page.getByRole("img", { name: "Plain Thread autumn collection" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Nexus Commerce autumn collection" })).toBeVisible();
 
     const departments = page.getByRole("region", { name: "Departments" });
     await expect(departments.getByRole("link", { name: /^Men$/ })).toHaveAttribute(

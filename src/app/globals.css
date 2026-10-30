@@ -49,7 +49,7 @@
 }
 
 :root {
-  /* PLAIN THREAD: warm paper, ink text, hairline stone edges. Deliberately
+  /* NEXUS COMMERCE: warm paper, ink text, hairline stone edges. Deliberately
      near chroma-free so the garment is the only thing competing for attention. */
   --background: oklch(0.985 0.004 85);
   --foreground: oklch(0.21 0.012 65);

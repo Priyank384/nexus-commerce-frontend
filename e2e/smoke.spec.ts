@@ -11,7 +11,7 @@ test("home renders the hero and its call to action", async ({ page }) => {
     "href",
     "/products",
   );
-  await expect(page.getByRole("link", { name: /plain thread/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /nexus commerce/i })).toBeVisible();
 });
 
 test("listing renders seeded products from the backend", async ({ page }) => {

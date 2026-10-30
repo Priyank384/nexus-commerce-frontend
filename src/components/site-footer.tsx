@@ -27,7 +27,7 @@ export function SiteFooter() {
     <footer className="mt-20 border-t">
       <div className="shell-x grid gap-10 py-14 md:grid-cols-[2fr_1fr_1fr]">
         <div>
-          <p className="text-sm font-medium tracking-[0.3em] uppercase">Plain Thread</p>
+          <p className="text-sm font-medium tracking-[0.3em] uppercase">Nexus Commerce</p>
           <p className="mt-3 max-w-sm text-sm text-muted-foreground">
             Considered wardrobe staples in natural fibres, made to be worn for years rather
             than seasons.
@@ -51,7 +51,7 @@ export function SiteFooter() {
       <div className="shell-x flex flex-col gap-2 border-t py-6 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between">
         {/* No build-time year here: these pages prerender statically, so a
             getFullYear() would freeze whatever year the image was built in. */}
-        <p>© Plain Thread</p>
+        <p>© Nexus Commerce</p>
         <p>Prices in INR · Payments secured by Razorpay</p>
       </div>
     </footer>

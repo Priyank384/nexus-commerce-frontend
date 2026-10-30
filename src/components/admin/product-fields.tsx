@@ -133,7 +133,7 @@ export function ProductFields({
 
       <div className="grid gap-4 border-t pt-6 sm:grid-cols-2">
         <Field label="Brand" htmlFor="product-brand" error={errors.brand}>
-          <Input id="product-brand" placeholder="Plain Thread" {...register("brand")} />
+          <Input id="product-brand" placeholder="Nexus Commerce" {...register("brand")} />
         </Field>
 
         <Field label="Gender" htmlFor="product-gender" error={errors.gender}>

@@ -133,7 +133,7 @@ test("an admin builds a piece with six variants and four images in one submit", 
   await page.getByLabel("Price (₹)", { exact: true }).fill("2499");
   await page.getByLabel("Compare-at price (₹)", { exact: true }).fill("3299");
   await page.getByLabel("Category").selectOption({ index: 1 });
-  await page.getByLabel("Brand").fill("Plain Thread");
+  await page.getByLabel("Brand").fill("Nexus Commerce");
   await page.getByLabel("Material").fill("100% linen");
 
   // S, M and L are preselected; two colours make the six-row grid.

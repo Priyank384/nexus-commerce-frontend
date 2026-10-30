@@ -25,7 +25,7 @@ test("mobile menu opens and closes", async ({ page }) => {
 
 test("wordmark and page body share one left edge", async ({ page }) => {
   await visit(page, "/products");
-  const wordmark = await page.getByRole("link", { name: /plain thread/i }).boundingBox();
+  const wordmark = await page.getByRole("link", { name: /nexus commerce/i }).boundingBox();
   // The listing titles itself from the filters (Everything, Menswear, a collection…).
   const heading = await page.getByRole("heading", { level: 1 }).first().boundingBox();
   expect(wordmark?.x).toBeCloseTo(heading?.x ?? -1, 0);

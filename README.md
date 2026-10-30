@@ -1,7 +1,7 @@
-# Plain Thread — storefront
+# Nexus Commerce — storefront
 
 Next.js 16 App Router frontend for the [NexusCommerce](../NexusCommerce) Spring Boot backend,
-branded as **Plain Thread**: a minimalist neutral apparel shop in the Everlane / COS
+branded as **Nexus Commerce**: a minimalist neutral apparel shop in the Everlane / COS
 register — warm paper, ink text, hairline edges, one typeface, no decorative colour.
 
 ## Design system
@@ -18,7 +18,7 @@ stay painless.
 | `shell-x` | The single horizontal rhythm (`max-width: 90rem`, clamp padding) shared by header, page body and footer so edges always line up. |
 | `--font-sans` | Set by `Geist({ variable: "--font-sans" })` in `layout.tsx`. The name is load-bearing — `@theme inline` maps Tailwind's `font-sans` onto it, so a different variable silently drops the brand typeface. |
 | `--font-heading` | `Inter Tight`, same name coupling. `h1`–`h3` get it (plus `tracking-tight`, weight 500) from a base-layer rule, so headings never need a class. |
-| Theme | `next-themes` with `attribute="class"`: the `.dark` token block in `globals.css` and every `dark:` variant key off `<html class="dark">`. `ThemeToggle` cycles light → dark → system, and the cycle reads the **stored preference** — deriving it from `resolvedTheme` meant a dark OS resolved "system" to dark, so the first click re-selected "system" and light mode was unreachable. `<html>` needs `suppressHydrationWarning` because the script rewrites the class before hydration. |
+| Theme | `next-themes` with `attribute="class"`: the `.dark` token block in `globals.css` and every `dark:` variant key off `<html class="dark">`. `ThemeToggle` is a two-state light/dark switch; "system" is only the starting default, and the first click resolves the OS preference and commits to its opposite, so the switch always changes what is on screen. `<html>` needs `suppressHydrationWarning` because the script rewrites the class before hydration. |
 | `EmptyState` | One voice for every "nothing here yet" surface — empty bag, wishlist, order history, a filter that matched nothing. |
 
 ## Stack
@@ -158,7 +158,7 @@ npm run dev                # http://localhost:3000
 | `API_BASE_URL` | `http://localhost:3001` | Server-only; used by the BFF proxy and `/uploads` rewrite. Never prefixed `NEXT_PUBLIC_`. |
 | `PORT` | `3000` | `next dev` / `next start` listen port. |
 | `NEXT_IMAGE_HOSTS` | empty | Comma-separated extra hostnames for `next/image` — hostnames only, no scheme or wildcard (production: the Supabase Storage public host). Read at build time, so changing it needs a redeploy. |
-| `NEXT_PUBLIC_SITE_URL` | Vercel production URL, else `http://localhost:3000` | Canonical origin for `<link rel="canonical">`, Open Graph URLs, `sitemap.ts`, `robots.ts` and JSON-LD. A bare origin (`https://plainthread.example`); a trailing slash is trimmed. |
+| `NEXT_PUBLIC_SITE_URL` | Vercel production URL, else `http://localhost:3000` | Canonical origin for `<link rel="canonical">`, Open Graph URLs, `sitemap.ts`, `robots.ts` and JSON-LD. A bare origin (`https://nexuscommerce.example`); a trailing slash is trimmed. |
 
 No backend secrets live here. The Spring `.env` (`JWT_SECRET`, MySQL creds, New Relic key)
 stays in the backend workspace.
@@ -189,7 +189,7 @@ src/
 │   ├── site-header.tsx  client header: session-aware (calls /api/auth/refresh on mount) and
 │   │                    renders the category mega-menu from GET /api/v1/categories/tree
 │   ├── site-footer.tsx  server footer (brand block + Shop/Account columns)
-│   ├── theme-toggle.tsx light → dark → system cycle
+│   ├── theme-toggle.tsx light/dark switch (system is the initial default)
 │   └── empty-state.tsx  shared "nothing here yet" block for bag / wishlist / orders / filters
 ├── lib/
 │   ├── api/            backend.ts, client.ts (typed openapi-fetch + 401 retry), schema.d.ts

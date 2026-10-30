@@ -57,7 +57,7 @@ function Hero() {
       <div className="relative aspect-[4/5] w-full overflow-hidden bg-muted sm:aspect-[16/9]">
         <Image
           src="https://picsum.photos/seed/pt-hero-2026/1800/1012?grayscale"
-          alt="Plain Thread autumn collection"
+          alt="Nexus Commerce autumn collection"
           fill
           priority
           sizes="100vw"
