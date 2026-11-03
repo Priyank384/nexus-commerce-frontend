@@ -1,5 +1,6 @@
 import createClient, { type Middleware } from "openapi-fetch";
 import { ensureSession, refreshSession, useSession } from "@/lib/auth/session";
+import { ensureGuestToken, GUEST_HEADER } from "@/lib/auth/guest-session";
 import { decodeJwt, isExpired } from "@/lib/auth/jwt";
 import type { paths } from "./schema";
 
@@ -7,6 +8,10 @@ import type { paths } from "./schema";
 // The base URL is same-origin so Next route handlers see it and forward.
 const BASE_URL = "/";
 
+// Cart and payment endpoints act on a shopper, who may be anonymous. Everywhere else the
+// credential would be dead weight, and minting one for a visitor who only browsed a product
+// page would put a session token in their storage for nothing.
+const SHOPPER_PATH = /^\/api\/v1\/(cart|payments)(\/|$)/;
 // Proactive-refresh: if the access token is > 30 s from expiry when we send, refresh
 // before hitting the network. Catches the "user sat on a page then submitted" case
 // without a 401 round-trip. A cold load has no token yet, so ensureSession() waits for
@@ -28,6 +33,12 @@ const authMiddleware: Middleware = {
   async onRequest({ request }) {
     const bearer = await ensureFreshBearer();
     if (bearer) request.headers.set("Authorization", `Bearer ${bearer}`);
+    // A bearer outranks the guest header upstream, so it is safe to send both — and
+    // POST /cart/merge needs exactly that pair to fold a guest bag into the account.
+    if (SHOPPER_PATH.test(new URL(request.url).pathname)) {
+      const guest = await ensureGuestToken();
+      if (guest) request.headers.set(GUEST_HEADER, guest);
+    }
     if (!request.body) {
       replayable.set(request, null);
       return request;

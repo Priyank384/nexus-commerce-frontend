@@ -17,6 +17,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: absoluteUrl("/"), lastModified: now, changeFrequency: "weekly", priority: 1 },
     { url: absoluteUrl("/products"), lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    // The policy pages are what a shopper reads before paying and what a crawler looks for on
+    // trust, so they are offered even when the catalogue call below fails.
+    { url: absoluteUrl("/returns"), lastModified: now, changeFrequency: "monthly", priority: 0.4 },
+    { url: absoluteUrl("/shipping"), lastModified: now, changeFrequency: "monthly", priority: 0.4 },
+    {
+      url: absoluteUrl("/size-guide"),
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.4,
+    },
+    { url: absoluteUrl("/contact"), lastModified: now, changeFrequency: "monthly", priority: 0.4 },
   ];
 
   await connection();

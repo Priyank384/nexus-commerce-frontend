@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { registerSchema, type RegisterValues } from "@/lib/validation/auth";
 import { useSession } from "@/lib/auth/session";
+import { sanitizeNext, nextHref } from "@/lib/auth/next-path";
+import { mergeGuestBag } from "@/lib/cart/queries";
 import { useHydrated } from "@/lib/use-hydrated";
 import type { ApiEnvelope } from "@/lib/api/errors";
 
@@ -19,7 +21,18 @@ import type { ApiEnvelope } from "@/lib/api/errors";
 // Zod keeps it required in the form so users always see it, but the empty
 // string is stripped before hitting Spring.
 export function RegisterForm() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterFormInner />
+    </Suspense>
+  );
+}
+
+function RegisterFormInner() {
   const router = useRouter();
+  // A guest who gives up on checking out again is the likeliest person to sign up, and they
+  // should land where they were going rather than back at the home page.
+  const next = sanitizeNext(useSearchParams().get("next"));
   const set = useSession((s) => s.set);
   const [serverAlert, setServerAlert] = useState<string | null>(null);
   const [serverFieldErrors, setServerFieldErrors] = useState<Record<string, string>>({});
@@ -96,12 +109,14 @@ export function RegisterForm() {
 
     if (!login?.ok || !loginBody?.data?.token) {
       toast.success("Account created — please log in");
-      router.replace("/login");
+      router.replace(nextHref("/login", next));
       return;
     }
     set(loginBody.data.token);
+    // The common path here is a shopper who signed up to pay for the bag they just filled.
+    await mergeGuestBag();
     toast.success("Welcome!");
-    router.replace("/");
+    router.replace(next);
   }
 
   return (
@@ -185,7 +200,7 @@ export function RegisterForm() {
 
       <p className="text-sm mt-4 text-muted-foreground">
         Already registered?{" "}
-        <Link href="/login" className="underline">
+        <Link href={nextHref("/login", next)} className="underline">
           Log in
         </Link>
       </p>

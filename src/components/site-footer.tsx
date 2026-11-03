@@ -18,6 +18,15 @@ const COLUMNS = [
       { href: "/register", label: "Create an account" },
     ],
   },
+  {
+    heading: "Help",
+    links: [
+      { href: "/returns", label: "Returns and refunds" },
+      { href: "/shipping", label: "Shipping and delivery" },
+      { href: "/size-guide", label: "Size guide" },
+      { href: "/contact", label: "Contact" },
+    ],
+  },
 ];
 
 // Server component: no session here, so the footer never blocks on the BFF
@@ -25,7 +34,7 @@ const COLUMNS = [
 export function SiteFooter() {
   return (
     <footer className="mt-20 border-t">
-      <div className="shell-x grid gap-10 py-14 md:grid-cols-[2fr_1fr_1fr]">
+      <div className="shell-x grid gap-10 py-14 md:grid-cols-[2fr_1fr_1fr_1fr]">
         <div>
           <p className="text-sm font-medium tracking-[0.3em] uppercase">Nexus Commerce</p>
           <p className="mt-3 max-w-sm text-sm text-muted-foreground">

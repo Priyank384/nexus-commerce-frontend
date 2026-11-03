@@ -280,6 +280,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change my password
+         * @description Proves the current password before accepting a new one, then revokes every refresh token on the account so other devices have to sign in again.
+         */
+        post: operations["changeMyPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reviews": {
         parameters: {
             query?: never;
@@ -379,7 +399,7 @@ export interface paths {
         put?: never;
         /**
          * Start payment for an order
-         * @description Creates the Razorpay order for the caller's order total and returns the checkout ticket (key id, Razorpay order id and amount in paise). Repeat calls re-price the order and replace any earlier ticket.
+         * @description Creates the Razorpay order for the order total and returns the checkout ticket (key id, Razorpay order id and amount in paise). Repeat calls re-price the order and replace any earlier ticket. A guest proves ownership of the order with the same X-Guest-Token header that placed it.
          */
         post: operations["createPayment"];
         delete?: never;
@@ -432,6 +452,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Claim an order bought as a guest
+         * @description Attaches the order a claim token names to the signed-in caller and returns it. The token is the one mailed with a guest's confirmation; it works once, and claiming retires it, so a forwarded email cannot hand the same order to a second account.
+         */
+        post: operations["claimOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/categories": {
         parameters: {
             query?: never;
@@ -450,6 +490,26 @@ export interface paths {
          * @description Adds a new category to the catalogue. Requires ROLE_ADMIN.
          */
         post: operations["createCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cart/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fold a guest cart into the signed-in account's cart
+         * @description Call it right after a login with the same X-Guest-Token the browser has been using. Lines of the same product and variant are summed, a line that no longer fits what is in stock is capped or dropped rather than failing the call, and the guest cart is retired. No header is a no-op.
+         */
+        post: operations["merge"];
         delete?: never;
         options?: never;
         head?: never;
@@ -487,9 +547,29 @@ export interface paths {
         put?: never;
         /**
          * Checkout the cart
-         * @description Converts the cart into an order (stock reserved atomically, snapshots written) and empties the cart. Optionally send a body to override the line items; omit it to use the cart as-is. Send an Idempotency-Key header to make retries safe: a repeat of the same key replays the first response instead of placing a duplicate order.
+         * @description Converts the cart into an order (stock reserved atomically, snapshots written) and empties the cart. Optionally send a body to override the line items; omit it to use the cart as-is. A guest sends email and shipping in that body; an account sends addressId. Send an Idempotency-Key header to make retries safe: a repeat of the same key replays the first response instead of placing a duplicate order.
          */
         post: operations["checkout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete a password reset
+         * @description Exchanges the token from the emailed link for a new password and signs every other device out of the account. The token works once; a used or expired link answers 400 and needs a fresh request.
+         */
+        post: operations["resetPassword"];
         delete?: never;
         options?: never;
         head?: never;
@@ -550,6 +630,46 @@ export interface paths {
          * @description Exchange email + password for a short-lived JWT bearer token and a single-use refresh token.
          */
         post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/guest-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open a guest shopping session
+         * @description Returns an opaque credential to send as the X-Guest-Token header, which is what lets a browser build a cart and pay for it before anyone has an account. Nothing is stored: the token is the only thing that identifies the session, so keep it in the browser and send it back unchanged. Reuse it after signing in by POSTing /api/v1/cart/merge with it.
+         */
+        post: operations["guestSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/forgot-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a password reset
+         * @description Emails a single-use link that expires in 15 minutes. Always answers 200, whether or not the address has an account, so it cannot be used to enumerate shoppers.
+         */
+        post: operations["forgotPassword"];
         delete?: never;
         options?: never;
         head?: never;
@@ -620,6 +740,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get my profile
+         * @description Name, email, phone and role for the authenticated caller. The account page reads this because the JWT only carries id, email and role.
+         */
+        get: operations["getMyProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit my profile
+         * @description Changes the name and phone on the authenticated account. Email is the login identity and is not editable here; it never leaves the row orders and addresses point at.
+         */
+        patch: operations["updateMyProfile"];
+        trace?: never;
+    };
     "/api/v1/cart/items/{id}": {
         parameters: {
             query?: never;
@@ -632,14 +776,14 @@ export interface paths {
         post?: never;
         /**
          * Remove a line from the cart
-         * @description Owner-only.
+         * @description Cart-owner only.
          */
         delete: operations["removeItem"];
         options?: never;
         head?: never;
         /**
          * Set quantity of a cart line
-         * @description Replaces the quantity on an existing line. Owner-only.
+         * @description Replaces the quantity on an existing line. Cart-owner only, by token or guest session.
          */
         patch: operations["updateItem"];
         trace?: never;
@@ -680,26 +824,6 @@ export interface paths {
          * @description Every list the caller owns, with item counts but without items -- the account page shows these and fetches one by id.
          */
         get: operations["listMyWishlists"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/users/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get my profile
-         * @description Name, email, phone and role for the authenticated caller. The account page reads this because the JWT only carries id, email and role.
-         */
-        get: operations["getMyProfile"];
         put?: never;
         post?: never;
         delete?: never;
@@ -941,7 +1065,7 @@ export interface paths {
         };
         /**
          * Get payment status of an order
-         * @description Owner-only. The storefront polls this after the checkout sheet closes, because the gateway webhook may settle the order first.
+         * @description Order-owner only. The storefront polls this after the checkout sheet closes, because the gateway webhook may settle the order first.
          */
         get: operations["paymentStatus"];
         put?: never;
@@ -1041,7 +1165,7 @@ export interface paths {
         };
         /**
          * Get my cart
-         * @description Returns the caller's cart; creates an empty one on first access.
+         * @description Returns the caller's cart, or an empty one when nothing has been added yet — reading never creates a row. Send X-Guest-Token instead of a bearer token to read a guest cart.
          */
         get: operations["getMyCart"];
         put?: never;
@@ -1512,6 +1636,16 @@ export interface components {
             /** Format: date-time */
             createdAt?: string;
         };
+        ChangePasswordRequestDto: {
+            currentPassword: string;
+            newPassword: string;
+        };
+        ApiResponseVoid: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: Record<string, never>;
+        };
         CreateReviewRequestDto: {
             /** Format: int64 */
             orderId: number;
@@ -1629,6 +1763,8 @@ export interface components {
             orderItems: components["schemas"]["OrderItemRequestDto"][];
             /** Format: int64 */
             addressId?: number;
+            email?: string;
+            shipping?: components["schemas"]["ShippingAddressRequestDto"];
         };
         OrderItemRequestDto: {
             /** Format: int64 */
@@ -1638,20 +1774,25 @@ export interface components {
             /** Format: int64 */
             variantId?: number;
         };
+        ShippingAddressRequestDto: {
+            recipientName: string;
+            phone: string;
+            line1: string;
+            line2?: string;
+            city: string;
+            state: string;
+            postalCode: string;
+            country?: string;
+        };
+        ClaimOrderRequestDto: {
+            claimToken: string;
+        };
         CreateCategoryRequestDto: {
             name: string;
             /** Format: int64 */
             parentId?: number;
             description?: string;
             slug?: string;
-        };
-        AddToCartRequestDto: {
-            /** Format: int64 */
-            productId: number;
-            /** Format: int32 */
-            quantity: number;
-            /** Format: int64 */
-            variantId?: number;
         };
         ApiResponseCartResponseDto: {
             success?: boolean;
@@ -1689,6 +1830,18 @@ export interface components {
             /** Format: int32 */
             itemCount?: number;
         };
+        AddToCartRequestDto: {
+            /** Format: int64 */
+            productId: number;
+            /** Format: int32 */
+            quantity: number;
+            /** Format: int64 */
+            variantId?: number;
+        };
+        ResetPasswordRequestDto: {
+            token: string;
+            password: string;
+        };
         RefreshRequestDto: {
             refreshToken: string;
         };
@@ -1706,15 +1859,21 @@ export interface components {
             refreshToken?: string;
             user?: components["schemas"]["GetUserResponseDto"];
         };
-        ApiResponseVoid: {
-            success?: boolean;
-            message?: string;
-            error?: string;
-            data?: Record<string, never>;
-        };
         LoginRequestDto: {
             email: string;
             password: string;
+        };
+        ApiResponseGuestSessionResponseDto: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: components["schemas"]["GuestSessionResponseDto"];
+        };
+        GuestSessionResponseDto: {
+            guestToken?: string;
+        };
+        ForgotPasswordRequestDto: {
+            email: string;
         };
         ApiResponseGetProductImageResponseDto: {
             success?: boolean;
@@ -1727,6 +1886,10 @@ export interface components {
             message?: string;
             error?: string;
             data?: string;
+        };
+        UpdateProfileRequestDto: {
+            name: string;
+            phone?: string;
         };
         UpdateCartItemRequestDto: {
             /** Format: int32 */
@@ -2472,6 +2635,30 @@ export interface operations {
             };
         };
     };
+    changeMyPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordRequestDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
     getAllReviews: {
         parameters: {
             query?: {
@@ -2621,7 +2808,9 @@ export interface operations {
     createPayment: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-Guest-Token"?: string;
+            };
             path: {
                 orderId: number;
             };
@@ -2643,7 +2832,9 @@ export interface operations {
     verifyPayment: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-Guest-Token"?: string;
+            };
             path: {
                 orderId: number;
             };
@@ -2715,6 +2906,30 @@ export interface operations {
             };
         };
     };
+    claimOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClaimOrderRequestDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetOrderResponseDto"];
+                };
+            };
+        };
+    };
     getAllCategory: {
         parameters: {
             query?: {
@@ -2762,10 +2977,34 @@ export interface operations {
             };
         };
     };
+    merge: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Guest-Token"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseCartResponseDto"];
+                };
+            };
+        };
+    };
     addItem: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-Guest-Token"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -2791,6 +3030,7 @@ export interface operations {
             query?: never;
             header?: {
                 "Idempotency-Key"?: string;
+                "X-Guest-Token"?: string;
             };
             path?: never;
             cookie?: never;
@@ -2808,6 +3048,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseGetOrderResponseDto"];
+                };
+            };
+        };
+    };
+    resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequestDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
                 };
             };
         };
@@ -2882,6 +3146,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseLoginResponseDto"];
+                };
+            };
+        };
+    };
+    guestSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGuestSessionResponseDto"];
+                };
+            };
+        };
+    };
+    forgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForgotPasswordRequestDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
                 };
             };
         };
@@ -2988,10 +3296,56 @@ export interface operations {
             };
         };
     };
-    removeItem: {
+    getMyProfile: {
         parameters: {
             query?: never;
             header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetUserResponseDto"];
+                };
+            };
+        };
+    };
+    updateMyProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileRequestDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGetUserResponseDto"];
+                };
+            };
+        };
+    };
+    removeItem: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Guest-Token"?: string;
+            };
             path: {
                 id: number;
             };
@@ -3013,7 +3367,9 @@ export interface operations {
     updateItem: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-Guest-Token"?: string;
+            };
             path: {
                 id: number;
             };
@@ -3100,26 +3456,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseListGetWishlistResponseDto"];
-                };
-            };
-        };
-    };
-    getMyProfile: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseGetUserResponseDto"];
                 };
             };
         };
@@ -3403,7 +3739,9 @@ export interface operations {
     paymentStatus: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-Guest-Token"?: string;
+            };
             path: {
                 orderId: number;
             };
@@ -3515,7 +3853,9 @@ export interface operations {
     getMyCart: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-Guest-Token"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -3535,7 +3875,9 @@ export interface operations {
     clear: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-Guest-Token"?: string;
+            };
             path?: never;
             cookie?: never;
         };

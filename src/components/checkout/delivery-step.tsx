@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type UseFormRegister, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,140 @@ import { useCreateAddress, type Address } from "@/lib/addresses/queries";
 import { HttpError } from "@/lib/api/errors";
 import { addressSchema, type AddressValues, type ContactValues } from "@/lib/validation/checkout";
 import { AddressSummary } from "./summary";
+
+/**
+ * The destination form, shared by the two ways a shopper gets to payment: saving it to an
+ * account's address book, or sending it with a single guest order.
+ */
+function AddressFields({
+  register,
+  errors,
+}: {
+  register: UseFormRegister<AddressValues>;
+  errors: FieldErrors<AddressValues>;
+}) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div className="sm:col-span-2">
+        <Label htmlFor="addr-name">Recipient name</Label>
+        <Input
+          id="addr-name"
+          autoComplete="name"
+          aria-invalid={Boolean(errors.recipientName)}
+          aria-describedby={errors.recipientName ? "addr-name-error" : undefined}
+          {...register("recipientName")}
+        />
+        {errors.recipientName ? (
+          <p id="addr-name-error" role="alert" className="mt-1 text-sm text-destructive">
+            {errors.recipientName.message}
+          </p>
+        ) : null}
+      </div>
+      <div className="sm:col-span-2">
+        <Label htmlFor="addr-line1">Address line 1</Label>
+        <Input
+          id="addr-line1"
+          autoComplete="address-line1"
+          aria-invalid={Boolean(errors.line1)}
+          aria-describedby={errors.line1 ? "addr-line1-error" : undefined}
+          {...register("line1")}
+        />
+        {errors.line1 ? (
+          <p id="addr-line1-error" role="alert" className="mt-1 text-sm text-destructive">
+            {errors.line1.message}
+          </p>
+        ) : null}
+      </div>
+      <div className="sm:col-span-2">
+        <Label htmlFor="addr-line2">Address line 2 (optional)</Label>
+        <Input id="addr-line2" autoComplete="address-line2" {...register("line2")} />
+        {errors.line2 ? (
+          <p id="addr-line2-error" role="alert" className="mt-1 text-sm text-destructive">
+            {errors.line2.message}
+          </p>
+        ) : null}
+      </div>
+      <div>
+        <Label htmlFor="addr-city">City</Label>
+        <Input
+          id="addr-city"
+          autoComplete="address-level2"
+          aria-invalid={Boolean(errors.city)}
+          aria-describedby={errors.city ? "addr-city-error" : undefined}
+          {...register("city")}
+        />
+        {errors.city ? (
+          <p id="addr-city-error" role="alert" className="mt-1 text-sm text-destructive">
+            {errors.city.message}
+          </p>
+        ) : null}
+      </div>
+      <div>
+        <Label htmlFor="addr-state">State</Label>
+        <Input
+          id="addr-state"
+          autoComplete="address-level1"
+          aria-invalid={Boolean(errors.state)}
+          aria-describedby={errors.state ? "addr-state-error" : undefined}
+          {...register("state")}
+        />
+        {errors.state ? (
+          <p id="addr-state-error" role="alert" className="mt-1 text-sm text-destructive">
+            {errors.state.message}
+          </p>
+        ) : null}
+      </div>
+      <div>
+        <Label htmlFor="addr-postal">PIN code</Label>
+        <Input
+          id="addr-postal"
+          autoComplete="postal-code"
+          inputMode="numeric"
+          aria-invalid={Boolean(errors.postalCode)}
+          aria-describedby={errors.postalCode ? "addr-postal-error" : undefined}
+          {...register("postalCode")}
+        />
+        {errors.postalCode ? (
+          <p id="addr-postal-error" role="alert" className="mt-1 text-sm text-destructive">
+            {errors.postalCode.message}
+          </p>
+        ) : null}
+      </div>
+      <div>
+        <Label htmlFor="addr-phone">Phone</Label>
+        <Input
+          id="addr-phone"
+          type="tel"
+          autoComplete="tel"
+          aria-invalid={Boolean(errors.phone)}
+          aria-describedby={errors.phone ? "addr-phone-error" : undefined}
+          {...register("phone")}
+        />
+        {errors.phone ? (
+          <p id="addr-phone-error" role="alert" className="mt-1 text-sm text-destructive">
+            {errors.phone.message}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function useAddressForm(contact: ContactValues) {
+  return useForm<AddressValues>({
+    resolver: zodResolver(addressSchema),
+    defaultValues: {
+      label: "Home",
+      recipientName: contact.name,
+      phone: contact.phone,
+      line1: "",
+      line2: "",
+      city: "",
+      state: "",
+      postalCode: "",
+    },
+  });
+}
 
 export function DeliveryStep({
   addresses,
@@ -37,19 +171,7 @@ export function DeliveryStep({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<AddressValues>({
-    resolver: zodResolver(addressSchema),
-    defaultValues: {
-      label: "Home",
-      recipientName: contact.name,
-      phone: contact.phone,
-      line1: "",
-      line2: "",
-      city: "",
-      state: "",
-      postalCode: "",
-    },
-  });
+  } = useAddressForm(contact);
 
   async function saveNewAddress(values: AddressValues) {
     try {
@@ -84,109 +206,7 @@ export function DeliveryStep({
           ) : null}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <Label htmlFor="addr-name">Recipient name</Label>
-            <Input
-              id="addr-name"
-              autoComplete="name"
-              aria-invalid={Boolean(errors.recipientName)}
-              aria-describedby={errors.recipientName ? "addr-name-error" : undefined}
-              {...register("recipientName")}
-            />
-            {errors.recipientName ? (
-              <p id="addr-name-error" role="alert" className="mt-1 text-sm text-destructive">
-                {errors.recipientName.message}
-              </p>
-            ) : null}
-          </div>
-          <div className="sm:col-span-2">
-            <Label htmlFor="addr-line1">Address line 1</Label>
-            <Input
-              id="addr-line1"
-              autoComplete="address-line1"
-              aria-invalid={Boolean(errors.line1)}
-              aria-describedby={errors.line1 ? "addr-line1-error" : undefined}
-              {...register("line1")}
-            />
-            {errors.line1 ? (
-              <p id="addr-line1-error" role="alert" className="mt-1 text-sm text-destructive">
-                {errors.line1.message}
-              </p>
-            ) : null}
-          </div>
-          <div className="sm:col-span-2">
-            <Label htmlFor="addr-line2">Address line 2 (optional)</Label>
-            <Input id="addr-line2" autoComplete="address-line2" {...register("line2")} />
-            {errors.line2 ? (
-              <p id="addr-line2-error" role="alert" className="mt-1 text-sm text-destructive">
-                {errors.line2.message}
-              </p>
-            ) : null}
-          </div>
-          <div>
-            <Label htmlFor="addr-city">City</Label>
-            <Input
-              id="addr-city"
-              autoComplete="address-level2"
-              aria-invalid={Boolean(errors.city)}
-              aria-describedby={errors.city ? "addr-city-error" : undefined}
-              {...register("city")}
-            />
-            {errors.city ? (
-              <p id="addr-city-error" role="alert" className="mt-1 text-sm text-destructive">
-                {errors.city.message}
-              </p>
-            ) : null}
-          </div>
-          <div>
-            <Label htmlFor="addr-state">State</Label>
-            <Input
-              id="addr-state"
-              autoComplete="address-level1"
-              aria-invalid={Boolean(errors.state)}
-              aria-describedby={errors.state ? "addr-state-error" : undefined}
-              {...register("state")}
-            />
-            {errors.state ? (
-              <p id="addr-state-error" role="alert" className="mt-1 text-sm text-destructive">
-                {errors.state.message}
-              </p>
-            ) : null}
-          </div>
-          <div>
-            <Label htmlFor="addr-postal">PIN code</Label>
-            <Input
-              id="addr-postal"
-              autoComplete="postal-code"
-              inputMode="numeric"
-              aria-invalid={Boolean(errors.postalCode)}
-              aria-describedby={errors.postalCode ? "addr-postal-error" : undefined}
-              {...register("postalCode")}
-            />
-            {errors.postalCode ? (
-              <p id="addr-postal-error" role="alert" className="mt-1 text-sm text-destructive">
-                {errors.postalCode.message}
-              </p>
-            ) : null}
-          </div>
-          <div>
-            <Label htmlFor="addr-phone">Phone</Label>
-            <Input
-              id="addr-phone"
-              type="tel"
-              autoComplete="tel"
-              aria-invalid={Boolean(errors.phone)}
-              aria-describedby={errors.phone ? "addr-phone-error" : undefined}
-              {...register("phone")}
-            />
-            {errors.phone ? (
-              <p id="addr-phone-error" role="alert" className="mt-1 text-sm text-destructive">
-                {errors.phone.message}
-              </p>
-            ) : null}
-          </div>
-        </div>
+        <AddressFields register={register} errors={errors} />
 
         <div className="flex items-center justify-between border-t pt-6">
           <Button type="button" variant="ghost" onClick={onBack}>
@@ -257,5 +277,47 @@ export function DeliveryStep({
         </Button>
       </div>
     </div>
+  );
+}
+
+/**
+ * A guest has no address book, so the destination travels with the order instead of being
+ * saved to an account that does not exist yet.
+ */
+export function GuestDeliveryStep({
+  contact,
+  onBack,
+  onContinue,
+}: {
+  contact: ContactValues;
+  onBack: () => void;
+  onContinue: (values: AddressValues) => void;
+}) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useAddressForm(contact);
+
+  return (
+    <form onSubmit={handleSubmit(onContinue)} className="space-y-6" noValidate>
+      <div>
+        <h2 tabIndex={-1} className="text-lg outline-none">
+          Delivery address
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          We deliver anywhere in India. This address is used for the order, nothing else.
+        </p>
+      </div>
+
+      <AddressFields register={register} errors={errors} />
+
+      <div className="flex items-center justify-between border-t pt-6">
+        <Button type="button" variant="ghost" onClick={onBack}>
+          Back
+        </Button>
+        <Button type="submit">Continue to payment</Button>
+      </div>
+    </form>
   );
 }

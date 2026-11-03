@@ -83,7 +83,7 @@ export function usePayOrder() {
       return {
         status: "failed",
         orderId,
-        message: "Could not reach the store. Your order is saved — try paying from your orders.",
+        message: "Could not reach the store. Your order is saved — try paying again.",
       };
     } finally {
       setPayingFor(null);

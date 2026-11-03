@@ -38,6 +38,14 @@ stay painless.
 - **Storefront** — home, category listing with faceted search, product detail (colour/size
   picker, gallery, reviews), bag drawer and `/cart`, wishlist, account hub (profile, addresses,
   wishlist), multi-step checkout with Razorpay test mode, and order history/detail.
+- **Guest spine** — an anonymous browser mints a shopping credential, fills a bag, pays and gets
+  a receipt without ever creating an account; signing in later folds the bag into the account and
+  the receipt email carries a one-time link that claims the order onto it.
+- **Password recovery** — forgot-password sends a reset link, the reset page consumes it, and
+  changing a password from the account hub re-signs the browser that just proved it.
+- **Trust pages** — `/returns`, `/shipping`, `/size-guide` and `/contact` under `src/lib/content/`
+  quote the merchant decisions and the store's actual behaviour (statuses an order really holds,
+  the fact that checkout adds no delivery fee), never a mechanism the API does not implement.
 - **Admin console** (`/admin`, `ROLE_ADMIN`) — dashboard (order pipeline, revenue, sold-out
   count); category tree with create/edit/delete and `moveToTopLevel`; products with a
   size×colour variant builder and a gallery (append, delete, reorder); orders with the
@@ -54,9 +62,12 @@ stay painless.
 The browser never talks to Spring directly. Every API call is same-origin to this Next app
 and one of:
 
-1. **`/api/auth/{login,refresh,logout}`** — Next route handlers that set/clear an httpOnly
-   refresh-token cookie (`rc`, `Path=/api/auth`) and forward credentials to Spring. Access
-   tokens live in a memory-only Zustand store — never in `localStorage`.
+1. **`/api/auth/{login,refresh,logout,forgot-password,reset-password,guest-session}`** — Next
+   route handlers. The first three set/clear an httpOnly refresh-token cookie (`rc`,
+   `Path=/api/auth`) and forward credentials to Spring; the password-recovery pair carries a
+   one-time token that never enters a cookie or a log; `guest-session` mints the anonymous
+   shopping credential, which *is* readable by JavaScript. Access tokens live in a memory-only
+   Zustand store — never in `localStorage`.
 2. **`/api/v1/[...path]`** — a generic proxy that forwards bearer, body, and query string to
    Spring's REST API.
 
@@ -83,6 +94,15 @@ shares one `/api/auth/refresh` with any request that fires first, and the BFF re
 bearer from the `rc` cookie. The cookie is cleared only when refresh answers 401/403 — a 5xx
 from the backend or the proxy must not sign everyone out.
 
+An anonymous browser shops on a different credential: `POST /api/auth/guest-session` mints a
+43-character token that `src/lib/auth/guest-session.ts` keeps in `localStorage` under
+`nx.guest-token` and the typed client sends as `X-Guest-Token`. Unlike the refresh cookie it is
+meant to be readable by JavaScript — it is the only proof a guest bag, a guest payment and a
+guest order have — and a stored value that does not match the minted shape is dropped rather than
+sent, because Spring answers a malformed header with 401 on every cart call. Signing in then
+calls `POST /api/v1/cart/merge` best-effort, so a bag built while anonymous does not simply look
+empty the moment the shopper logs in.
+
 Catalogue pages are server components over `src/lib/catalog/server.ts`, which marks reads with
 `"use cache"` plus `cacheTag("products")` / `cacheTag("categories")`. Any non-GET catalogue
 call that succeeds through the BFF calls `revalidateTag(tag, { expire: 0 })`, so the next page
@@ -91,11 +111,13 @@ goes through that cache and is marked `no-store`.
 
 ### Guards
 
-`src/proxy.ts` (Next 16's rename of middleware) matches `/account`, `/cart`, `/checkout`,
-`/orders` and `/admin` and redirects to `/login?next=…` when the `has_session` hint cookie is
-missing. The hint is presence-only — it carries no token — so this is navigation UX, not
-authorization: Spring still validates every call, `UserGate` waits for the session, and
-`AdminGate` checks `role === "ADMIN"` before the console renders.
+`src/proxy.ts` (Next 16's rename of middleware) matches `/account`, `/orders` and `/admin` and
+redirects to `/login?next=…` when the `has_session` hint cookie is missing. `/cart` and
+`/checkout` are deliberately **not** in that list: a bag belongs to whoever is holding it, so the
+`(shop)` group carries no `UserGate` and sign-in is an offer at the till, never a toll. The hint
+is presence-only — it carries no token — so this is navigation UX, not authorization: Spring still
+validates every call, `UserGate` waits for the session, and `AdminGate` checks `role === "ADMIN"`
+before the console renders.
 
 ### BFF hardening
 
@@ -159,6 +181,7 @@ npm run dev                # http://localhost:3000
 | `PORT` | `3000` | `next dev` / `next start` listen port. |
 | `NEXT_IMAGE_HOSTS` | empty | Comma-separated extra hostnames for `next/image` — hostnames only, no scheme or wildcard (production: the Supabase Storage public host). Read at build time, so changing it needs a redeploy. |
 | `NEXT_PUBLIC_SITE_URL` | Vercel production URL, else `http://localhost:3000` | Canonical origin for `<link rel="canonical">`, Open Graph URLs, `sitemap.ts`, `robots.ts` and JSON-LD. A bare origin (`https://nexuscommerce.example`); a trailing slash is trimmed. |
+| `NEXT_PUBLIC_SUPPORT_EMAIL` | empty | The only inbox `/contact` publishes. `supportEmail()` returns null unless the value looks like an address, and the page then says there is no configured inbox instead of inventing one — every other contact route it offers (returns, shipping, size guide) is a page that exists. |
 
 No backend secrets live here. The Spring `.env` (`JWT_SECRET`, MySQL creds, New Relic key)
 stays in the backend workspace.
@@ -168,23 +191,36 @@ stays in the backend workspace.
 ```
 src/
 ├── app/
-│   ├── (public)/       /, /products, /products/[slug] — browse without auth
-│   ├── (auth)/         /login, /register
-│   ├── (user)/         /cart, /checkout, /account, /orders — requires bearer
+│   ├── (public)/       /, /products, /products/[slug] and the trust pages /returns,
+│   │                   /shipping, /size-guide, /contact — browse without auth
+│   ├── (auth)/         /login, /register, /forgot-password, /auth/reset-password
+│   ├── (shop)/         /cart, /checkout, /checkout/done/[orderId] — no UserGate: a bag
+│   │                   belongs to whoever holds it, signed in or not
+│   ├── (user)/         /account, /orders, /orders/[id], /orders/claim — requires bearer
 │   ├── (admin)/        /admin, /admin/products, /admin/categories, /admin/orders,
 │   │                   /admin/inventory, /admin/users — requires ROLE_ADMIN
 │   ├── api/
-│   │   ├── auth/       login / refresh / logout route handlers (cookie BFF)
+│   │   ├── auth/       login / refresh / logout / forgot-password / reset-password /
+│   │   │               guest-session route handlers (cookie BFF)
 │   │   └── v1/         generic /api/v1/[...path] proxy (size cap, header stripping, tags)
 │   ├── layout.tsx      metadata, fonts, providers, header + footer
 │   ├── providers.tsx   QueryClientProvider + ThemeProvider (next-themes) + sonner Toaster
 │   ├── error.tsx       route error boundary (global-error.tsx catches the root layout)
 │   ├── not-found.tsx   branded 404
 │   └── robots.ts, sitemap.ts, manifest.ts
-├── proxy.ts            signed-out redirect for /account, /cart, /checkout, /orders, /admin
+├── proxy.ts            signed-out redirect for /account, /orders, /admin (not /cart, /checkout)
 ├── components/
 │   ├── ui/             shadcn primitives (only the ones still used)
-│   ├── admin/          admin-gate.tsx (ROLE_ADMIN check) and product-editor.tsx
+│   ├── admin/          admin-gate.tsx (ROLE_ADMIN check) plus one client view per console
+│   │                   screen — dashboard-view, category-manager, products-view, orders-view,
+│   │                   inventory-view, users-view, new-product-form — each wrapped by a thin
+│   │                   server page, and the editor pieces (product-editor, product-fields,
+│   │                   variant-builder, gallery-manager, image-picker)
+│   ├── checkout/       the multi-step till: contact, delivery (plus GuestDeliveryStep),
+│   │                   payment review, summary, and the guest receipt
+│   ├── content/        article.tsx — the shared shell the four policy pages render through
+│   ├── orders/         order history table, detail and claim-view (the emailed link's target)
+│   ├── account/        profile-panel (name, email, change password), addresses, wishlist
 │   ├── seo/            product-json-ld.tsx
 │   ├── site-header.tsx  client header: session-aware (calls /api/auth/refresh on mount) and
 │   │                    renders the category mega-menu from GET /api/v1/categories/tree
@@ -193,7 +229,9 @@ src/
 │   └── empty-state.tsx  shared "nothing here yet" block for bag / wishlist / orders / filters
 ├── lib/
 │   ├── api/            backend.ts, client.ts (typed openapi-fetch + 401 retry), schema.d.ts
-│   ├── auth/           jwt.ts (decode only), session.ts (Zustand memory store)
+│   ├── auth/           jwt.ts (decode only), session.ts (Zustand memory store),
+│   │                   guest-session.ts (the anonymous shopping credential), sign-in.ts
+│   ├── content/        policy.ts — the merchant decisions the trust pages quote
 │   ├── query/          client.ts — registered QueryClient, cleared when the identity changes
 │   ├── catalog/        server.ts ("use cache" + product/category tags) and client queries
 │   ├── site.ts         brand strings + canonical origin resolution
@@ -211,13 +249,25 @@ next.config.ts          CSP + security headers, /uploads rewrite, validated imag
 
 - **`(public)`** — no auth required. The header nav links categories by **slug**
   (`/products?category=mens-denim`), because names repeat across roots (Men/Denim and
-  Women/Denim) and Spring resolves the filter with `findBySlugIgnoreCase`.
-- **`(auth)`** — signed-out entry points (login, register).
+  Women/Denim) and Spring resolves the filter with `findBySlugIgnoreCase`. The four trust pages
+  live here too: a shopper deciding whether to buy is the audience, and none of them reads a
+  session.
+- **`(auth)`** — signed-out entry points (login, register, forgot-password) and
+  `/auth/reset-password`, whose path is the one the backend's reset email links to.
+- **`(shop)`** — `cart`, `checkout` and the receipt. Its layout deliberately has **no**
+  `UserGate`: the till is where an anonymous shopper pays, so signing in is offered there, never
+  demanded. It is `robots: noindex` because a checkout page is not content.
 - **`(user)`** — `UserGate` waits for the session and redirects to `/login` when it is empty;
   `proxy.ts` has usually redirected already, before any client bundle runs.
 - **`(admin)`** — `AdminGate` checks `user.role === "ADMIN"` before the console renders. The
   shell renders the admin nav; each screen talks only to endpoints Spring already gates with
   `ROLE_ADMIN`.
+
+Every admin screen is a thin **server** page that renders a client view and carries
+`export const instant = false`. Segment config has to sit on the segment itself — a parent
+layout's opt-out does not silence the instant-navigation validator for a client child — and each
+console tab fetches its own data on the client, so it can never prefetch into an instant
+transition.
 
 Guards are UX only — the proxy reads a presence-only hint cookie and the gates read the decoded
 token. Real authorization is enforced by Spring; the BFF forwards whatever bearer the client has
@@ -230,7 +280,9 @@ and lets 403/401 bubble up.
    ```ts
    const { data, error } = await api.GET("/api/v1/products/{id}", { params: { path: { id } } });
    ```
-3. Bearer injection + 401-refresh-retry are automatic.
+3. Bearer injection + 401-refresh-retry are automatic, and a cart or payment call also carries
+   `X-Guest-Token` when the browser holds one — the client attaches whichever credential the
+   shopper actually has.
 
 ## Reading an error response
 
@@ -263,14 +315,28 @@ with the envelope — no endpoint returns 204.
   run with stray catalogue rows. Playwright keeps screenshots and video only on failure and
   `forbidOnly` is on in CI, so a stray `test.only` cannot silently skip the suite.
 
+  Run one sweep at a time. Next 16 refuses a second `next dev`, so a concurrent run either dies
+  on startup or shares the server the first one is driving — and every fixture that creates,
+  renames or deletes a piece then races the other run's assertions. The nonsense failures that
+  follow look like product bugs: a listing that renders a product the other run is deleting, a
+  category that cannot be removed because a parallel test just nested something under it. When a
+  sweep reports a cluster of unrelated failures, check `pgrep -fl "playwright test"` before
+  believing any of them, then clear `test-results/` and re-run alone.
+
+  A reused dev server also keeps its own catalogue cache. If an earlier run pointed it at a
+  different backend, pages can still render that backend's data, so `rm -rf .next` (or simply
+  restarting it) is part of changing `API_BASE_URL`, not an optional step.
+
 ## Deploy
 
 Vercel, with the Spring backend on Render (see the backend repo's `DEPLOYMENT.md`).
 
 1. Import this repository into Vercel (framework preset **Next.js**, branch `main`).
 2. Set `API_BASE_URL` to the deployed API origin, `NEXT_IMAGE_HOSTS` to the Supabase Storage
-   public hostname (no scheme), and `NEXT_PUBLIC_SITE_URL` to the canonical storefront origin
-   so canonicals, Open Graph and the sitemap point at the real domain. Changing the image hosts
+   public hostname (no scheme), `NEXT_PUBLIC_SITE_URL` to the canonical storefront origin
+   so canonicals, Open Graph and the sitemap point at the real domain, and
+   `NEXT_PUBLIC_SUPPORT_EMAIL` to the inbox `/contact` should publish — leave it unset and the
+   page says so plainly rather than inventing an address. Changing the image hosts
    needs a redeploy — remote patterns are resolved at build time.
 3. Deploy. No backend secret lives in Vercel; the BFF cookie is httpOnly, `SameSite=Lax` and
    `Secure` on HTTPS, and never leaves this origin. Security headers — including HSTS — are

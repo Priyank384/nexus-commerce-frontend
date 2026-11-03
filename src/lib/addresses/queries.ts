@@ -14,7 +14,7 @@ function failed(status: number, body: unknown): HttpError {
   return new HttpError(status, toAuthFailure(status, body).message);
 }
 
-export function useAddressesQuery() {
+export function useAddressesQuery(enabled = true) {
   return useQuery({
     queryKey: ADDRESSES_KEY,
     queryFn: async (): Promise<Address[]> => {
@@ -22,6 +22,8 @@ export function useAddressesQuery() {
       if (!response.ok || !data?.data) throw failed(response.status, error);
       return data.data;
     },
+    // The address book is an account table; a guest asking for it would only earn a 401.
+    enabled,
   });
 }
 

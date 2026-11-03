@@ -8,7 +8,20 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/api/", "/admin", "/account", "/cart", "/checkout", "/orders", "/login", "/register"],
+        disallow: [
+          "/api/",
+          "/admin",
+          "/account",
+          "/cart",
+          "/checkout",
+          "/orders",
+          "/login",
+          "/register",
+          // Password recovery: a reset URL carries a live credential, and no crawler should be
+          // offered the chance to fetch one.
+          "/forgot-password",
+          "/auth",
+        ],
       },
     ],
     sitemap: absoluteUrl("/sitemap.xml"),

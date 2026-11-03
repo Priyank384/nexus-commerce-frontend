@@ -14,9 +14,9 @@ import { CART_KEY, useCartQuery, type Cart } from "@/lib/cart/queries";
 import { useAddressesQuery } from "@/lib/addresses/queries";
 import type { Order } from "@/lib/orders/format";
 import { cn } from "@/lib/utils";
-import type { ContactValues } from "@/lib/validation/checkout";
+import type { AddressValues, ContactValues } from "@/lib/validation/checkout";
 import { ContactStep } from "./contact-step";
-import { DeliveryStep } from "./delivery-step";
+import { DeliveryStep, GuestDeliveryStep } from "./delivery-step";
 import { PaymentStep } from "./payment-step";
 import { RazorpayScript } from "./razorpay";
 import { CheckoutSummary, type SummaryLine } from "./summary";
@@ -35,12 +35,18 @@ export function CheckoutView() {
   const queryClient = useQueryClient();
   const user = useSession((state) => state.user);
   const cartQuery = useCartQuery();
-  const addressesQuery = useAddressesQuery();
+  const addressesQuery = useAddressesQuery(user != null);
   const { pay, payingFor } = usePayOrder();
+
+  // A guest checks out with the session credential the API client attaches, so the only
+  // difference at the till is where the destination comes from: typed for the order, or
+  // picked from an address book that only an account has.
+  const isGuest = user == null;
 
   const [step, setStep] = useState<Step>(1);
   const [contact, setContact] = useState<ContactValues | null>(null);
   const [addressId, setAddressId] = useState<number | null>(null);
+  const [shipping, setShipping] = useState<AddressValues | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
   const [placing, setPlacing] = useState(false);
   const [payNotice, setPayNotice] = useState<string | null>(null);
@@ -65,8 +71,15 @@ export function CheckoutView() {
     addresses.find((address) => address.defaultShipping) ?? addresses[0] ?? null;
 
   const selectedAddress =
-    order?.address ?? addresses.find((address) => address.id === addressId) ?? null;
+    order?.address ?? (isGuest ? shipping : addresses.find((address) => address.id === addressId)) ?? null;
   const total = order?.totalPrice ?? cart?.grandTotal ?? 0;
+  // A guest has no order history to open, so the receipt page is the one that reads the
+  // payment status through the session credential instead of an account.
+  const orderHref = order?.id
+    ? isGuest
+      ? `/checkout/done/${order.id}`
+      : `/orders/${order.id}`
+    : null;
 
   const lines: SummaryLine[] = order
     ? (order.items ?? []).map((item, index) => ({
@@ -100,8 +113,21 @@ export function CheckoutView() {
     let current = order;
 
     if (!current) {
-      if (addressId == null) {
-        setPayError("Choose a delivery address before paying.");
+      const body = isGuest
+        ? contact &&
+          shipping && {
+            orderItems: [],
+            email: contact.email,
+            // The destination travels with the order: a guest has no address book to name.
+            shipping: { ...shipping, line2: shipping.line2?.trim() || undefined, country: "IN" },
+          }
+        : addressId != null && { orderItems: [], addressId };
+      if (!body) {
+        setPayError(
+          isGuest
+            ? "Add your email and delivery address before paying."
+            : "Choose a delivery address before paying.",
+        );
         return;
       }
       const key = (idempotencyKey.current ??= newKey());
@@ -111,7 +137,7 @@ export function CheckoutView() {
           params: { header: { "Idempotency-Key": key } },
           // The server builds the lines from the cart; orderItems is only here because the
           // generated request type is shared with the direct-order endpoint.
-          body: { orderItems: [], addressId },
+          body,
         });
         if (!response.ok || !data?.data) {
           setPayError(toAuthFailure(response.status, error ?? null).message);
@@ -141,12 +167,18 @@ export function CheckoutView() {
 
     if (result.status === "paid") {
       toast.success("Payment captured");
-      router.push(`/orders/${result.orderId}?paid=1`);
+      router.push(
+        isGuest
+          ? `/checkout/done/${result.orderId}?paid=1`
+          : `/orders/${result.orderId}?paid=1`,
+      );
       return;
     }
     if (result.status === "dismissed") {
       setPayNotice(
-        `Order #${result.orderId} is saved. You can finish payment from your orders at any time.`,
+        isGuest
+          ? `Order #${result.orderId} is saved. Pay from here whenever you're ready — the receipt link is on its way to your inbox.`
+          : `Order #${result.orderId} is saved. You can finish payment from your orders at any time.`,
       );
       void queryClient.invalidateQueries({ queryKey: ["order", result.orderId] });
       return;
@@ -154,7 +186,11 @@ export function CheckoutView() {
     setPayError(result.message);
   }
 
-  if (cartQuery.isPending || addressesQuery.isPending) return <CheckoutSkeleton />;
+  // A guest never calls the address book, so waiting on it would hold the till behind a
+  // query that stays parked in "pending" forever.
+  if (cartQuery.isPending || (!isGuest && addressesQuery.isPending)) {
+    return <CheckoutSkeleton />;
+  }
 
   if (cartQuery.isError) {
     return (
@@ -177,7 +213,7 @@ export function CheckoutView() {
         <CheckoutHeading />
         <EmptyState
           title="Nothing to check out"
-          description="Your bag is empty. Add a piece or two and come back — your address book is already waiting."
+          description="Your bag is empty. Add a piece or two and come back."
           action={{ label: "Browse the collection", href: "/products" }}
         />
       </div>
@@ -225,6 +261,7 @@ export function CheckoutView() {
             {step === 1 ? (
               <ContactStep
                 initial={initialContact}
+                emailReadOnly={!isGuest}
                 onContinue={(values) => {
                   setContact(values);
                   setStep(2);
@@ -233,22 +270,35 @@ export function CheckoutView() {
             ) : null}
 
             {step === 2 ? (
-              <DeliveryStep
-                addresses={addresses}
-                initialAddressId={addressId}
-                contact={contact ?? initialContact}
-                onBack={() => setStep(1)}
-                onContinue={(id) => {
-                  setAddressId(id);
-                  setPayError(null);
-                  setStep(3);
-                }}
-              />
+              isGuest ? (
+                <GuestDeliveryStep
+                  contact={contact ?? initialContact}
+                  onBack={() => setStep(1)}
+                  onContinue={(values) => {
+                    setShipping(values);
+                    setPayError(null);
+                    setStep(3);
+                  }}
+                />
+              ) : (
+                <DeliveryStep
+                  addresses={addresses}
+                  initialAddressId={addressId}
+                  contact={contact ?? initialContact}
+                  onBack={() => setStep(1)}
+                  onContinue={(id) => {
+                    setAddressId(id);
+                    setPayError(null);
+                    setStep(3);
+                  }}
+                />
+              )
             ) : null}
 
             {step === 3 ? (
               <PaymentStep
                 order={order}
+                orderHref={orderHref}
                 address={selectedAddress}
                 total={total}
                 busy={busy}

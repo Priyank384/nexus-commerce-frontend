@@ -3,12 +3,31 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { HttpError, toAuthFailure } from "@/lib/api/errors";
+import { getGuestToken } from "@/lib/auth/guest-session";
 import type { components } from "@/lib/api/schema";
 
 export type Cart = components["schemas"]["CartResponseDto"];
 export type CartLine = components["schemas"]["CartItemResponseDto"];
 
 export const CART_KEY = ["cart"] as const;
+
+/**
+ * Signing in changes which cart the storefront reads, so a bag built while anonymous would
+ * simply look empty the moment the shopper logs in. The backend folds the two together and
+ * retires the guest cart.
+ *
+ * Best-effort on purpose: this runs immediately after a successful login, and an error surfacing
+ * there would read as though signing in broke.
+ */
+export async function mergeGuestBag(): Promise<void> {
+  if (!getGuestToken()) return;
+  // Neither a rejected merge nor a dead backend is reported: the cart page refetches either way.
+  try {
+    await api.POST("/api/v1/cart/merge", {});
+  } catch {
+    // A lost merge is a lost bag, not a lost account.
+  }
+}
 
 function failed(status: number, body: unknown): HttpError {
   return new HttpError(status, toAuthFailure(status, body).message);

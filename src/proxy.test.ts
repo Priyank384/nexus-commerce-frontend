@@ -25,11 +25,19 @@ describe("proxy", () => {
   });
 
   it("redirects an anonymous visitor to login with the destination", () => {
-    const { res } = run("/checkout?step=payment");
+    const { res } = run("/orders/12?tab=items");
     expect(res.status).toBe(307);
     const location = new URL(res.headers.get("location")!);
     expect(location.pathname).toBe("/login");
-    expect(location.searchParams.get("next")).toBe("/checkout?step=payment");
+    expect(location.searchParams.get("next")).toBe("/orders/12?tab=items");
+  });
+
+  it("lets an anonymous visitor reach the bag and checkout", () => {
+    // Guest checkout is a supported path: the bag is owned by the browser's guest session,
+    // and gating these routes would put a login wall on the way to the till.
+    for (const path of ["/cart", "/checkout", "/checkout?step=payment"]) {
+      expect(run(path).res.headers.get("x-middleware-next")).toBe("1");
+    }
   });
 
   it("does not accept the path-scoped refresh cookie as proof of a session", () => {

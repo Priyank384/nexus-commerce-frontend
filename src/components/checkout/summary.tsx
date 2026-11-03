@@ -1,5 +1,7 @@
 import Image from "next/image";
+import Link from "next/link";
 import { formatPrice } from "@/lib/catalog/format";
+import { RETURN_WINDOW_DAYS } from "@/lib/content/policy";
 
 export type SummaryLine = {
   key: string;
@@ -82,6 +84,30 @@ export function CheckoutSummary({ lines, total }: { lines: SummaryLine[]; total:
         </div>
       </dl>
       <p className="mt-1.5 text-xs text-muted-foreground">Prices include all taxes.</p>
+      {/* The moment a shopper decides is the moment the promises matter, so the three pages that
+          define this order's terms sit under the total rather than only in the footer. */}
+      <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t pt-4 text-xs">
+        <li>
+          <Link href="/shipping" className="text-muted-foreground underline underline-offset-4">
+            Delivery times
+          </Link>
+        </li>
+        <li>
+          <Link href="/returns" className="text-muted-foreground underline underline-offset-4">
+            {RETURN_WINDOW_DAYS}-day returns
+          </Link>
+        </li>
+        <li>
+          <Link href="/size-guide" className="text-muted-foreground underline underline-offset-4">
+            Size guide
+          </Link>
+        </li>
+        <li>
+          <Link href="/contact" className="text-muted-foreground underline underline-offset-4">
+            Contact
+          </Link>
+        </li>
+      </ul>
     </aside>
   );
 }

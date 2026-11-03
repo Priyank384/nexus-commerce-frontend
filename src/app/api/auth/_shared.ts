@@ -80,20 +80,34 @@ export async function forwardJson(
   body: unknown,
   extraHeaders: Record<string, string> = {},
 ) {
-  const res = await fetch(`${backendUrl()}${upstreamPath}`, {
-    method: "POST",
-    // No Origin header: this is a server-to-server call, and the backend's CORS
-    // allowlist only names the storefront origin.
-    headers: {
-      "Content-Type": "application/json",
-      ...extraHeaders,
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
-  const text = await res.text();
-  const parsed = text ? safeJson(text) : null;
-  return { res, parsed };
+  let res: Response;
+  let text: string;
+  try {
+    res = await fetch(`${backendUrl()}${upstreamPath}`, {
+      method: "POST",
+      // No Origin header: this is a server-to-server call, and the backend's CORS
+      // allowlist only names the storefront origin.
+      headers: {
+        "Content-Type": "application/json",
+        ...extraHeaders,
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+    text = await res.text();
+  } catch (error) {
+    // A rejected fetch or a connection cut mid-body means the reply never arrived, so this
+    // handler cannot know whether Spring did the work. Without this the route throws and
+    // Next answers a bare 500 with no body, which the forms can only render as
+    // "Request failed (500)".
+    console.error(`[bff] ${upstreamPath}: upstream unreachable (${(error as Error).name})`);
+    const message = "The store is unreachable right now. Please try again.";
+    return {
+      res: new Response(null, { status: 502 }),
+      parsed: { success: false, message, error: message, data: null },
+    };
+  }
+  return { res, parsed: text ? safeJson(text) : null };
 }
 
 function safeJson(text: string): unknown {

@@ -11,9 +11,13 @@ const SESSION_COOKIE = "has_session";
 // later. Authorization itself is enforced by Spring; this is navigation UX.
 //
 // It must be the hint cookie, not the refresh token: `rc` is scoped to /api/auth,
-// so the browser never sends it on a /account or /cart request and every signed-in
+// so the browser never sends it on a /account or /orders request and every signed-in
 // visitor would be redirected to /login.
-const PROTECTED = /^\/(?:account|cart|checkout|orders|admin)(?:\/|$)/;
+//
+// /cart and /checkout are absent on purpose. Anonymous shopping is a supported path — the
+// bag and the order belong to the browser's guest session, not to an account — so gating
+// them would turn the front door of the store into a login wall.
+const PROTECTED = /^\/(?:account|orders|admin)(?:\/|$)/;
 
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
@@ -28,5 +32,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/account/:path*", "/cart/:path*", "/checkout/:path*", "/orders/:path*", "/admin/:path*"],
+  matcher: ["/account/:path*", "/orders/:path*", "/admin/:path*"],
 };

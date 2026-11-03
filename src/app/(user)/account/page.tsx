@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// The (user) layout gates on the in-memory session, so this segment never renders during
+// an instant navigation. Declaring it keeps the dev validator from warning on every visit.
+export const instant = false;
+
 export default function AccountPage() {
   return <AccountView />;
 }

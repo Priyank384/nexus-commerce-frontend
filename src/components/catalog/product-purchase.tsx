@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Minus, Plus, Ruler } from "lucide-react";
@@ -19,17 +20,13 @@ import { WishlistButton } from "./wishlist-button";
 import { HttpError } from "@/lib/api/errors";
 import { useCartMutations } from "@/lib/cart/queries";
 import { discountPercent, formatPrice, groupVariantsByColor, imageUrlForColor } from "@/lib/catalog/format";
+import { FIT_TABLE } from "@/lib/content/policy";
 import type { ProductListItem } from "@/lib/catalog/server";
 
-/** Sizes the fit guide quotes; the numbers are our own block pattern, not a supplier claim. */
-const FIT_TABLE: { size: string; chest: string; length: string }[] = [
-  { size: "XS", chest: '34–36"', length: '27"' },
-  { size: "S", chest: '37–39"', length: '28"' },
-  { size: "M", chest: '40–42"', length: '29"' },
-  { size: "L", chest: '43–45"', length: '30"' },
-  { size: "XL", chest: '46–48"', length: '31"' },
-  { size: "XXL", chest: '49–51"', length: '32"' },
-];
+/**
+ * Sizes the fit dialog quotes. Shared with the /size-guide page so a shopper who checks the
+ * product page and then the guide cannot be shown two different answers for what a size M is.
+ */
 
 export function ProductPurchase({ product }: { product: ProductListItem }) {
   const pathname = usePathname();
@@ -192,6 +189,17 @@ export function ProductPurchase({ product }: { product: ProductListItem }) {
                       ))}
                     </tbody>
                   </table>
+                  {/* The dialog answers "what is a size M"; the page answers the questions around
+                      it — how to choose between two, and what to do when the guess was wrong. */}
+                  <p className="mt-4 text-sm">
+                    <Link
+                      href="/size-guide"
+                      className="underline underline-offset-4 text-foreground"
+                    >
+                      How to pick a size
+                    </Link>{" "}
+                    <span className="text-muted-foreground">— between sizes, fabric and returns.</span>
+                  </p>
                 </DialogContent>
               </Dialog>
             </legend>

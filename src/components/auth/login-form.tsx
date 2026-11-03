@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -12,12 +12,16 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { loginSchema, type LoginValues } from "@/lib/validation/auth";
 import { useSession } from "@/lib/auth/session";
+import { sanitizeNext, nextHref } from "@/lib/auth/next-path";
+import { mergeGuestBag } from "@/lib/cart/queries";
+import {
+  RATE_LIMIT_WINDOW_SECONDS,
+  RateLimitCountdown,
+} from "./rate-limit-countdown";
 import { useHydrated } from "@/lib/use-hydrated";
 import { toAuthFailure, type ApiEnvelope } from "@/lib/api/errors";
 
 // Reads `?next=` so the guards in (user)/(admin) can bounce back after login.
-const RATE_LIMIT_WINDOW_SECONDS = 60;
-
 function LoginFormInner() {
   const router = useRouter();
   const params = useSearchParams();
@@ -75,6 +79,7 @@ function LoginFormInner() {
       return;
     }
     set(token);
+    await mergeGuestBag();
     toast.success("Signed in");
     router.replace(next);
   }
@@ -130,39 +135,19 @@ function LoginFormInner() {
       </form>
 
       <p className="text-sm mt-4 text-muted-foreground">
+        <Link href="/forgot-password" className="underline">
+          Forgot password?
+        </Link>
+      </p>
+
+      <p className="text-sm mt-2 text-muted-foreground">
         No account?{" "}
-        <Link href="/register" className="underline">
+        <Link href={nextHref("/register", next)} className="underline">
           Register
         </Link>
       </p>
     </div>
   );
-}
-
-function RateLimitCountdown({ seconds, onExpire }: { seconds: number; onExpire: () => void }) {
-  const [remaining, setRemaining] = useState(seconds);
-
-  useEffect(() => {
-    const id = setInterval(() => setRemaining((r) => Math.max(0, r - 1)), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    if (remaining === 0) onExpire();
-  }, [remaining, onExpire]);
-
-  return (
-    <p className="text-sm text-amber-600 mb-3">
-      Too many attempts — retry in <span className="tabular-nums font-medium">{remaining}s</span>
-    </p>
-  );
-}
-
-// Only allow same-origin paths so we never redirect off-site.
-function sanitizeNext(raw: string | null): string {
-  if (!raw) return "/";
-  if (!raw.startsWith("/") || raw.startsWith("//")) return "/";
-  return raw;
 }
 
 export function LoginForm() {

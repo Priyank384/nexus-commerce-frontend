@@ -2,13 +2,16 @@ import { expect, test, type APIRequestContext } from "@playwright/test";
 import { adminCredentials, loginAsAdmin } from "./admin";
 import { visit } from "./visit";
 
-// Requires the ADMIN account bootstrapped by the backend and both servers running.
-// `source ../NexusCommerce/.env && npm run test:e2e -- e2e/admin.spec.ts`
+// Requires the ADMIN account bootstrapped by the backend and both servers running. Run it
+// through the harness, which reads ../NexusCommerce/.env for the credentials and pins the
+// backend URL: `npm run test:e2e -- e2e/admin.spec.ts`
 
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=",
   "base64",
 );
+
+type CategoryNode = { id?: number; name?: string; children?: CategoryNode[] };
 
 /**
  * A failed assertion must not seed the next run with stray pieces. Teardown goes over the
@@ -29,6 +32,23 @@ async function removeFixtures(request: APIRequestContext) {
   for (const fixture of fixtures) {
     // Another run may have removed it between the read and the delete.
     const deleted = await request.delete(`/api/v1/products/${fixture.id}`, { headers });
+    expect([200, 204, 404]).toContain(deleted.status());
+  }
+
+  // The category sweep builds a parent and a child; a failure between the two leaves the
+  // parent behind, and a parent with children cannot be deleted, so descendants go first.
+  const tree = await request.get("/api/v1/categories/tree", { headers });
+  expect(tree.ok()).toBeTruthy();
+  const doomed: CategoryNode[] = [];
+  const collect = (nodes: CategoryNode[]) => {
+    for (const node of nodes) {
+      collect(node.children ?? []);
+      if (node.name?.startsWith("E2E ")) doomed.push(node);
+    }
+  };
+  collect(((await tree.json()) as { data?: CategoryNode[] }).data ?? []);
+  for (const node of doomed) {
+    const deleted = await request.delete(`/api/v1/categories/${node.id}`, { headers });
     expect([200, 204, 404]).toContain(deleted.status());
   }
 }

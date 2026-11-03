@@ -2,6 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,9 +10,12 @@ import { contactSchema, type ContactValues } from "@/lib/validation/checkout";
 
 export function ContactStep({
   initial,
+  emailReadOnly,
   onContinue,
 }: {
   initial: ContactValues;
+  /** An account's email is its identity and the order addresses it anyway, so only a guest types one. */
+  emailReadOnly: boolean;
   onContinue: (values: ContactValues) => void;
 }) {
   const {
@@ -22,13 +26,25 @@ export function ContactStep({
 
   return (
     <form onSubmit={handleSubmit(onContinue)} className="space-y-6" noValidate>
-      <div>
-        <h2 tabIndex={-1} className="text-lg outline-none">
-          Contact
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your receipt and delivery updates go to this address.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 tabIndex={-1} className="text-lg outline-none">
+            Contact
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {emailReadOnly
+              ? "Your receipt and delivery updates go to this address."
+              : "We email your receipt and delivery updates here — no account needed."}
+          </p>
+        </div>
+        {emailReadOnly ? null : (
+          <Link
+            href="/login?next=%2Fcheckout"
+            className="shrink-0 text-sm underline underline-offset-4 hover:text-muted-foreground"
+          >
+            Sign in
+          </Link>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -38,8 +54,8 @@ export function ContactStep({
             id="contact-email"
             type="email"
             autoComplete="email"
-            readOnly
-            className="bg-muted/50"
+            readOnly={emailReadOnly}
+            className={emailReadOnly ? "bg-muted/50" : undefined}
             aria-invalid={Boolean(errors.email)}
             aria-describedby={errors.email ? "contact-email-error" : undefined}
             {...register("email")}

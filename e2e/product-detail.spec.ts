@@ -103,9 +103,15 @@ test.describe("product detail", () => {
     await expect(page.getByText(/Add to bag ·/)).toContainText("1,780");
   });
 
-  test("an anonymous add-to-bag goes to sign in and back", async ({ page }) => {
+  test("an anonymous add-to-bag stays on the page and belongs to the visitor", async ({ page }) => {
+    // Phase 8 took this wall down: a bag is a guest session's, not an account's, so adding a piece
+    // must not bounce anybody to sign in.
     await page.getByRole("button", { name: /^Add to bag/ }).click();
-    await expect(page).toHaveURL(/\/login\?next=%2Fproducts%2Forganic-cotton-crew-tee/);
+    await expect(page.getByRole("dialog", { name: "Your bag" })).toBeVisible();
+    await expect(page).toHaveURL(/\/products\/organic-cotton-crew-tee$/);
+
+    const token = await page.evaluate(() => window.localStorage.getItem("nx.guest-token"));
+    expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
   });
 
   test("an unknown slug 404s with a way back to the collection", async ({ page }) => {

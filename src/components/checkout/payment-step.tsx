@@ -11,6 +11,7 @@ import { AddressSummary, type AddressLike } from "./summary";
 
 export function PaymentStep({
   order,
+  orderHref,
   address,
   total,
   busy,
@@ -20,6 +21,8 @@ export function PaymentStep({
   onBack,
 }: {
   order: Order | null;
+  /** Where "View order" leads: the account's order page, or the guest receipt that reads the same order through the session credential. */
+  orderHref: string | null;
   address: AddressLike | null;
   total: number;
   busy: boolean;
@@ -81,8 +84,8 @@ export function PaymentStep({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4 border-t pt-6">
-        {order ? (
-          <Link href={`/orders/${order.id}`} className={cn(buttonVariants({ variant: "outline" }))}>
+        {orderHref ? (
+          <Link href={orderHref} className={cn(buttonVariants({ variant: "outline" }))}>
             View order
           </Link>
         ) : (

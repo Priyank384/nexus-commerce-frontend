@@ -28,6 +28,11 @@ if (existsSync(ENV_FILE)) {
 // challenges). Next gives a real shell variable precedence over `.env.local`.
 env.API_BASE_URL ??= "http://localhost:3001";
 
+// Spring's PORT is not Next's: copied straight through it, the dev server Playwright boots
+// tries to bind the backend's port and dies on EADDRINUSE before a single spec runs. The port
+// has to match baseURL and webServer.url in playwright.config.ts.
+env.PORT = "3000";
+
 const child = spawn("npx", ["playwright", "test", ...process.argv.slice(2)], {
   env,
   stdio: "inherit",

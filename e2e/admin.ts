@@ -3,7 +3,8 @@ import { visit } from "./visit";
 
 /**
  * The ADMIN account is bootstrapped from ../NexusCommerce/.env, so the specs read the same
- * variables the backend started with: `source ../NexusCommerce/.env` before `npm run test:e2e`.
+ * credentials the backend started with. `scripts/e2e.mjs` parses that file and passes the two
+ * `ADMIN_BOOTSTRAP_*` values through; running Playwright directly has to set them itself.
  */
 export function adminCredentials() {
   const email = process.env.ADMIN_BOOTSTRAP_EMAIL;
