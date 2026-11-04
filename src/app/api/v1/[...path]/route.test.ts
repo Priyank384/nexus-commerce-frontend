@@ -144,6 +144,25 @@ describe("/api/v1 proxy", () => {
     expect(captured.init?.body).toBeTruthy();
   });
 
+  /**
+   * Chrome sends `Origin` on a same-origin POST but not on a GET, so forwarding it made
+   * Spring's CORS filter answer 403 "Invalid CORS request" to every write on the deployed
+   * storefront while every page kept loading. This is the shape of the live bug, and a GET
+   * assertion would not have caught it.
+   */
+  it("never carries the browser's Origin into the server-to-server call", async () => {
+    upstream({ "content-type": "application/json" }, "{}");
+    await POST(
+      new NextRequest("http://localhost:3000/api/v1/cart/items", {
+        method: "POST",
+        body: '{"variantId":1}',
+        headers: { origin: "https://nexus-commerce-frontend-ten.vercel.app", referer: "https://nexus-commerce-frontend-ten.vercel.app/products/1" },
+      }),
+    );
+    expect(captured.headers?.get("origin")).toBeNull();
+    expect(captured.headers?.get("referer")).toBeNull();
+  });
+
   it("exposes DELETE so soft-deletes reach the backend", async () => {
     expect(DELETE).toBe(GET);
     upstream({ "content-type": "application/json" }, "{}");

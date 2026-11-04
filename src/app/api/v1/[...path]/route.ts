@@ -30,11 +30,19 @@ const HOP_BY_HOP = new Set([
 //  - forwarded-* and x-real-ip would let a caller spoof its origin/IP past the
 //    backend's rate limiter and CORS handling;
 //  - accept-encoding is dropped so Node fetch asks for an identity body — a
-//    `br` body it cannot decode must never reach the browser.
+//    `br` body it cannot decode must never reach the browser;
+//  - origin and referer describe the browser↔Vercel hop. This call is
+//    server-to-server, and Spring's CORS filter answers 403 "Invalid CORS request"
+//    to any Origin outside CORS_ALLOWED_ORIGINS. Chrome sends Origin on
+//    same-origin POST/PUT/DELETE but not on GET, so leaving it in fails every write
+//    (add to bag, wishlist, checkout) while every page still loads — which is exactly
+//    how this looked in production. The BFF-only auth handlers already omit it.
 const STRIPPED_REQUEST = new Set([
   "cookie",
   "set-cookie",
   "accept-encoding",
+  "origin",
+  "referer",
   "x-forwarded-for",
   "x-forwarded-host",
   "x-forwarded-proto",
