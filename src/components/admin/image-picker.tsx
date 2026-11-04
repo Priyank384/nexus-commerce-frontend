@@ -4,15 +4,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { uploadSafeFileBytes } from "@/lib/upload/limits";
 
 export const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export const MAX_IMAGE_BYTES = uploadSafeFileBytes();
 
 export function rejectedImage(file: File): string | null {
   if (!ACCEPTED_IMAGE_TYPES.includes(file.type as (typeof ACCEPTED_IMAGE_TYPES)[number])) {
     return `${file.name} is not a PNG, JPEG or WebP.`;
   }
-  if (file.size > MAX_IMAGE_BYTES) return `${file.name} is over 5 MB.`;
+  if (file.size > MAX_IMAGE_BYTES) {
+    return `${file.name} is over ${Math.floor(MAX_IMAGE_BYTES / (1024 * 1024))} MB.`;
+  }
   return null;
 }
 
@@ -59,7 +62,8 @@ export function ImagePicker({
         Add images
       </Button>
       <p className="text-xs text-muted-foreground">
-        PNG, JPEG or WebP, up to 5 MB each. The first image becomes the thumbnail.
+        PNG, JPEG or WebP, up to {Math.floor(MAX_IMAGE_BYTES / (1024 * 1024))} MB each. The
+        first image becomes the thumbnail.
       </p>
 
       {rejected.length > 0 ? (

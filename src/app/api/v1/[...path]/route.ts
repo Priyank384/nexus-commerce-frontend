@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { backendUrl } from "@/lib/api/backend";
+import { PROXY_MAX_BODY_BYTES as MAX_BODY_BYTES } from "@/lib/upload/limits";
 
 // Generic BFF proxy for every Spring REST endpoint under /api/v1/**.
 // Browser traffic never hits Spring directly — this handler is the only hop.
@@ -76,8 +77,11 @@ const PRIVATE_PREFIXES = [
   "payments/",
 ];
 
-// Image uploads are the largest legitimate body; anything past this is abuse.
-const MAX_BODY_BYTES = 10 * 1024 * 1024;
+// Image uploads are the largest legitimate body; the cap itself lives in
+// src/lib/upload/limits.ts so the admin picker derives its advertised ceiling from the
+// same number, and deliberately sits above Vercel's payload wall — when deployed there the
+// platform rejects an oversized body before this handler runs, so this cap is the one that
+// fires when the BFF is run locally or self-hosted, where nothing buffers the body first.
 
 // No maxDuration is set here, so the platform's default function limit applies — whatever
 // it is, a wedged Render container would hit it and the shopper gets a platform error
