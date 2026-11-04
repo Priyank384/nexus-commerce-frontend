@@ -69,6 +69,35 @@ test.describe("catalogue listing", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("“cashmere”");
     await expect(page.locator('a[href^="/products/"]')).not.toHaveCount(0);
   });
+
+  // "black tee" used to answer with nothing: no product carries a colour in its own text,
+  // because colour lives on the variant. The backend reads the word as a filter and says so.
+  test("a colour word in the search box becomes a chip that can be taken off", async ({ page }) => {
+    await visit(page, "/products?keyword=black+tee");
+    const chip = page.getByRole("link", { name: "Stop filtering by Colour Black" });
+    await expect(chip).toBeVisible();
+    await expect(chip).toHaveAttribute("href", "/products?keyword=tee");
+
+    await chip.click();
+    await expect(page).toHaveURL(/keyword=tee/);
+    await expect(page.getByRole("link", { name: /^Stop filtering/ })).toHaveCount(0);
+  });
+
+  test("each chip removes only the word it was made from", async ({ page }) => {
+    await visit(page, "/products?keyword=m+bone+shirt");
+    const chips = page.getByRole("link", { name: /^Stop filtering/ });
+    await expect(chips).toHaveCount(2);
+    await expect(chips.first()).toHaveAttribute("href", "/products?keyword=bone+shirt");
+  });
+
+  test("a search that found nothing still offers the words back", async ({ page }) => {
+    await visit(page, "/products?keyword=black+waistcoat");
+    await expect(page.getByText("Nothing matches those filters")).toBeVisible();
+    const chip = page.getByRole("link", { name: "Stop filtering by Colour Black" });
+    await expect(chip).toBeVisible();
+    await chip.click();
+    await expect(page).toHaveURL(/keyword=waistcoat/);
+  });
 });
 
 test.describe("home", () => {

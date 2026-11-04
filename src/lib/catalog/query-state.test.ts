@@ -4,6 +4,7 @@ import {
   MAX_PAGE_SIZE,
   activeFacetCount,
   catalogHref,
+  dropKeywordWord,
   mergeQuery,
   parseCatalogQuery,
   queryToSearchParams,
@@ -106,5 +107,38 @@ describe("activeFacetCount", () => {
     expect(activeFacetCount({ ...empty, minPrice: "100", maxPrice: "900" })).toBe(1);
     expect(activeFacetCount({ ...empty, sizes: ["s", "m"], gender: "men" })).toBe(3);
     expect(activeFacetCount(empty)).toBe(0);
+  });
+});
+
+describe("dropKeywordWord", () => {
+  it("takes one word out and leaves the rest of the phrase", () => {
+    expect(dropKeywordWord("black tee", "black")).toBe("tee");
+    expect(dropKeywordWord("m bone shirt", "bone")).toBe("m shirt");
+  });
+
+  it("matches the word the backend reported, whatever case was typed", () => {
+    expect(dropKeywordWord("BLACK tee", "black")).toBe("tee");
+  });
+
+  it("clears the search when the chip was the only word", () => {
+    expect(dropKeywordWord("black", "black")).toBeUndefined();
+    expect(dropKeywordWord(undefined, "black")).toBeUndefined();
+  });
+
+  it("leaves the phrase alone when the word is not in it", () => {
+    // A chip can only come from this query, but a stale link must not silently search for
+    // nothing — keeping the text is the failure that shows the shopper what they typed.
+    expect(dropKeywordWord("  linen   shirt  ", "black")).toBe("linen   shirt");
+  });
+
+  it("drops only the first of a repeated word", () => {
+    expect(dropKeywordWord("black black tee", "black")).toBe("black tee");
+  });
+
+  it("is what the chip link sends", () => {
+    const query = { ...empty, keyword: "black tee" };
+    expect(catalogHref(query, { keyword: dropKeywordWord(query.keyword, "black") ?? null })).toBe(
+      "/products?keyword=tee",
+    );
   });
 });

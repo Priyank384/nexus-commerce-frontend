@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "@/components/catalog/product-card";
 import { FacetPanel } from "@/components/catalog/facet-panel";
 import { FacetDisclosure } from "@/components/catalog/facet-disclosure";
+import { InferredFacets } from "@/components/catalog/inferred-facets";
 import { Pagination } from "@/components/catalog/pagination";
 import { EmptyState } from "@/components/empty-state";
 import { parseCatalogQuery, toUrlSearchParams } from "@/lib/catalog/query-state";
@@ -122,6 +123,8 @@ async function Browse({ searchParams }: { searchParams: SearchParamsPromise }) {
           {count} {count === 1 ? "piece" : "pieces"}
         </p>
       </div>
+
+      <InferredFacets query={query} results={results} />
 
       {count === 0 ? (
         <EmptyState

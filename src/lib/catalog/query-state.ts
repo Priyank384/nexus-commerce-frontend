@@ -113,6 +113,25 @@ export function mergeQuery(query: CatalogQuery, patch: QueryPatch): CatalogQuery
   return next;
 }
 
+/**
+ * Removing an inferred chip means giving the shopper back the word the backend read as a filter.
+ * The backend re-infers from whatever is left, so dropping one word off the search box takes off
+ * exactly that chip and leaves the others.
+ */
+export function dropKeywordWord(
+  keyword: string | undefined,
+  word: string,
+): string | undefined {
+  const trimmed = keyword?.trim();
+  if (!trimmed) return undefined;
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  const target = word.trim().toLowerCase();
+  const index = tokens.findIndex((token) => token.toLowerCase() === target);
+  if (index < 0) return trimmed;
+  const rest = [...tokens.slice(0, index), ...tokens.slice(index + 1)];
+  return rest.length ? rest.join(" ") : undefined;
+}
+
 /** Toggling a multi-select facet: present means remove, absent means add, order resets. */
 export function toggleFacet(query: CatalogQuery, facet: "sizes" | "colors", value: string): CatalogQuery {
   const current = query[facet] ?? [];

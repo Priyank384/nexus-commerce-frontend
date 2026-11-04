@@ -29,6 +29,20 @@ export type PageMeta = {
 
 export type ProductPage = PageMeta & { content: ProductListItem[] };
 
+/**
+ * A filter the backend worked out from the words in the search box rather than from a facet the
+ * shopper clicked — `black tee` becomes colour=Black. `word` is the text it read that way, which
+ * is what removing the chip puts back. The generated contract marks these optional because the
+ * DTO carries no validation, but the service always fills all three.
+ */
+export type InferredFacet = { facet: "color" | "size"; value: string; word: string };
+
+/** `/search` answers with the page plus the two fields that explain how the words were read. */
+export type SearchPage = ProductPage & {
+  textQuery?: string | null;
+  inferredFacets?: InferredFacet[];
+};
+
 type Envelope<T> = { success: boolean; message: string; error: string | null; data: T };
 
 /** Carries the upstream status so a page can tell "no such product" from "backend is down". */
@@ -117,7 +131,7 @@ export async function searchProducts(params: CatalogQuery) {
   // catalogue is the same for everyone, so a minute of sharing is free.
   cacheLife("minutes");
   cacheTag("products");
-  return read<ProductPage>("/api/v1/products/search", apply(new URLSearchParams(), params));
+  return read<SearchPage>("/api/v1/products/search", apply(new URLSearchParams(), params));
 }
 
 /** A page of products from the same facet combination, minus the ones we already showed. */

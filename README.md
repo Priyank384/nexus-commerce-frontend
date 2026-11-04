@@ -38,6 +38,13 @@ stay painless.
 - **Storefront** — home, category listing with faceted search, product detail (colour/size
   picker, gallery, reviews), bag drawer and `/cart`, wishlist, account hub (profile, addresses,
   wishlist), multi-step checkout with Razorpay test mode, and order history/detail.
+- **Search that reads the words** — the listing sends the phrase as typed to `/products/search`.
+  The backend ranks on PostgreSQL (stemmed, title-weighted) and reports any word it read as a
+  filter rather than as text: `black tee` comes back as colour=Black with `textQuery: "tee"`, and
+  `src/components/catalog/inferred-facets.tsx` renders each of those as a chip showing the word it
+  was made from. Clicking a chip rebuilds the URL with **only that word** dropped from the search
+  box (`dropKeywordWord()`), so `m bone shirt` loses `Bone` and keeps the other two filters. The
+  frontend implements no matching of its own — it only echoes what the API said it inferred.
 - **Guest spine** — an anonymous browser mints a shopping credential, fills a bag, pays and gets
   a receipt without ever creating an account; signing in later folds the bag into the account and
   the receipt email carries a one-time link that claims the order onto it.

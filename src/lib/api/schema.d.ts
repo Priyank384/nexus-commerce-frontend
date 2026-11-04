@@ -985,7 +985,11 @@ export interface paths {
         };
         /**
          * Browse the catalogue by keyword and facets
-         * @description The storefront listing, collection and search pages. Filter by keyword (every word must appear in the title, brand, description, material or category name), gender, category slug (a parent slug matches its whole subtree), price range, sizes and colours; sort by id, price, rating, createdAt or title. Unknown gender, category, size or colour values are rejected rather than answered with an empty page. The keyword is lowercased, whitespace-folded, stripped of LIKE metacharacters and clamped to 64 characters before it becomes a cache key. Public; cached per query combination.
+         * @description The storefront listing, collection and search pages. Filter by gender, category slug (a parent slug matches its whole subtree), price range, sizes and colours; sort by id, price, rating, createdAt or title. Unknown gender, category, size or colour values are rejected rather than answered with an empty page. The keyword is lowercased, whitespace-folded, stripped of LIKE metacharacters and clamped to 64 characters before it becomes a cache key.
+         *
+         *     A keyword that names a colour or a size the catalogue sells becomes a facet filter instead of free text, so "black tee" is searched as colour=Black and the text tee. Those choices are returned in inferredFacets, and textQuery is the phrase actually matched -- both let a storefront show the filter as a chip and hand back a URL that removes it.
+         *
+         *     On PostgreSQL, a keyword with no explicit sort is ranked by full-text relevance (stemmed, weighted title over brand over material over description); every other query matches the same rows by substring. Public; cached per query combination.
          */
         get: operations["search"];
         put?: never;
@@ -1985,6 +1989,31 @@ export interface components {
             message?: string;
             error?: string;
             data?: string[];
+        };
+        ApiResponseProductSearchResponseDto: {
+            success?: boolean;
+            message?: string;
+            error?: string;
+            data?: components["schemas"]["ProductSearchResponseDto"];
+        };
+        InferredFacetDto: {
+            facet?: string;
+            value?: string;
+            word?: string;
+        };
+        ProductSearchResponseDto: {
+            content?: components["schemas"]["GetProductWithDetailsResponseDto"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            last?: boolean;
+            textQuery?: string;
+            inferredFacets?: components["schemas"]["InferredFacetDto"][];
         };
         ApiResponsePageResponseGetProductWithDetailsResponseDto: {
             success?: boolean;
@@ -3666,7 +3695,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponsePageResponseGetProductWithDetailsResponseDto"];
+                    "*/*": components["schemas"]["ApiResponseProductSearchResponseDto"];
                 };
             };
         };
