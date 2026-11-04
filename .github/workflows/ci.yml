@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Lets a maintainer re-run the suite without a throwaway commit. Useful because this job builds
+  # with no API_BASE_URL on purpose, so it is also the guard that catches a route reading the
+  # catalogue at build time — worth being able to exercise it on demand.
+  workflow_dispatch:
 
 jobs:
   build:
