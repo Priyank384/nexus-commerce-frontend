@@ -357,6 +357,10 @@ The topology this project ships against: **storefront on Vercel → Spring API o
 PostgreSQL + Supabase Storage + Upstash Redis.** Vercel holds no database, no Redis and no Razorpay
 secret — those all belong to the backend service.
 
+Live deployment: `https://nexus-commerce-frontend-ten.vercel.app`. Replace it in the tables below if
+you move to a custom domain, and change `STOREFRONT_BASE_URL` on Render in the same step — the two
+must stay the same origin or the emailed links drift off-site.
+
 ### 1. Import the repository
 
 1. [vercel.com/new](https://vercel.com/new) → the GitHub app must be authorised on
@@ -399,6 +403,17 @@ client at the API.
 
 Preview deployments get a random `*.vercel.app` URL per push and need nothing extra for the same
 reason.
+
+**But the BFF must not forward the browser's `Origin`.** Spring's CORS filter answers
+403 `Invalid CORS request` to any `Origin` outside `CORS_ALLOWED_ORIGINS`, and a browser sends
+`Origin` on a same-origin `POST`/`PUT`/`DELETE` while omitting it on a `GET`. So if the catch-all
+proxy passes it through, every page loads and every write fails — add to bag, wishlist, address,
+review, checkout — and it looks like an authorization bug rather than a CORS one. It is invisible
+locally too, because the dev storefront's origin is normally already on the allowlist.
+`STRIPPED_REQUEST` in `src/app/api/v1/[...path]/route.ts` drops `origin` and `referer` for this
+reason; the BFF-only handlers under `src/app/api/auth/` never send them, which is why login kept
+working. A request through that proxy is server-to-server: it carries no browser identity, and the
+`Origin` that describes it is the browser's relationship with Vercel, not with Render.
 
 ### 4. Tell Render about the new origin
 
