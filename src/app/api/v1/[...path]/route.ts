@@ -79,9 +79,19 @@ const PRIVATE_PREFIXES = [
 // Image uploads are the largest legitimate body; anything past this is abuse.
 const MAX_BODY_BYTES = 10 * 1024 * 1024;
 
+// No maxDuration is set here, so the platform's default function limit applies — whatever
+// it is, a wedged Render container would hit it and the shopper gets a platform error
+// instead of this handler's retryable 502. 55 s sits above the ~50 s cold start documented
+// for the free plan (DEPLOYMENT.md, README.md), so a slow first hit still succeeds, and
+// ends the wait on our side of the kill so the timeout lands in the fetch catch.
+const UPSTREAM_TIMEOUT_MS = 55_000;
+
 // Writes that change what the cached catalogue readers see. Reviews change a product's
-// rating, so they count too.
-const CATALOGUE_MUTATION = /^(?:products|categories|admin\/products|reviews)(?:\/|$)/;
+// rating, so they count too, and orders move stock — createOrder decrements it, a
+// cancel restores it — so without `orders` a purchase leaves the product page selling
+// the last unit until the cache tier expires and the next shopper only finds out at
+// checkout. `cart` is deliberately absent: adding to a cart changes no stock.
+const CATALOGUE_MUTATION = /^(?:products|categories|orders|admin\/products|reviews)(?:\/|$)/;
 
 function jsonError(status: number, message: string): NextResponse {
   return NextResponse.json(
@@ -118,6 +128,46 @@ function isSafeTail(tail: string): boolean {
   });
 }
 
+/**
+ * The Content-Length pre-check only catches a declared size; a chunked upload
+ * declares nothing, so `req.body` would stream uncapped straight to Spring —
+ * this public proxy as a flood pipe. Re-stream the body while counting bytes
+ * and error the outbound stream once past the cap; `onOverCap` lets the caller
+ * tell that abort apart from an unreachable backend.
+ */
+function capBody(
+  source: ReadableStream<Uint8Array> | null,
+  onOverCap: () => void,
+): ReadableStream<Uint8Array> | null {
+  if (!source) return null;
+  let received = 0;
+  const reader = source.getReader();
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          controller.close();
+          return;
+        }
+        received += value.byteLength;
+        if (received > MAX_BODY_BYTES) {
+          onOverCap();
+          reader.cancel().catch(() => {});
+          controller.error(new Error("request body exceeded size cap"));
+          return;
+        }
+        controller.enqueue(value);
+      } catch (err) {
+        controller.error(err);
+      }
+    },
+    cancel(reason) {
+      return reader.cancel(reason);
+    },
+  });
+}
+
 async function proxy(req: NextRequest): Promise<Response> {
   // Derive the tail from the request URL rather than the handler's `params`
   // argument — under cacheComponents the second-arg shape isn't guaranteed.
@@ -129,12 +179,23 @@ async function proxy(req: NextRequest): Promise<Response> {
   if (!isSafeTail(tail)) return jsonError(404, "Not found");
   if (BFF_ONLY.some((p) => tail.startsWith(p))) return jsonError(404, "Not found");
 
-  const base = backendUrl();
-  const target = new URL(`${base}/api/v1/${tail}`);
-  target.search = req.nextUrl.search;
+  // A bad API_BASE_URL must degrade like the auth handlers' 502 envelope, not escape
+  // as a bodyless Next 500 that client code calling res.json() cannot parse.
+  // baseOrigin is computed inside the try because `new URL(base)` itself can throw.
+  let target: URL;
+  let baseOrigin: string;
+  try {
+    const base = backendUrl();
+    baseOrigin = new URL(base).origin;
+    target = new URL(`${base}/api/v1/${tail}`);
+    target.search = req.nextUrl.search;
+  } catch (err) {
+    console.error(`[bff] backend URL for ${req.method} /${tail} failed to resolve:`, err);
+    return jsonError(502, "Backend unreachable");
+  }
   // Belt and braces: whatever the segment check missed, the final URL must still
   // be on the backend origin and inside /api/v1.
-  if (target.origin !== new URL(base).origin || !target.pathname.startsWith("/api/v1/")) {
+  if (target.origin !== baseOrigin || !target.pathname.startsWith("/api/v1/")) {
     return jsonError(404, "Not found");
   }
 
@@ -143,15 +204,19 @@ async function proxy(req: NextRequest): Promise<Response> {
     return jsonError(413, "Request body too large");
   }
 
+  let overBodyCap = false;
   const init: RequestInit = {
     method: req.method,
     headers: pickRequestHeaders(req),
     cache: "no-store",
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
   };
 
   if (req.method !== "GET" && req.method !== "HEAD") {
     // Stream through — supports JSON, multipart/form-data and empty bodies.
-    init.body = req.body;
+    init.body = capBody(req.body, () => {
+      overBodyCap = true;
+    });
     // @ts-expect-error — Node fetch duplex flag required for streaming body.
     init.duplex = "half";
   }
@@ -160,8 +225,12 @@ async function proxy(req: NextRequest): Promise<Response> {
   try {
     upstream = await fetch(target, init);
   } catch (err) {
-    // Log the real cause (DNS, connection refused) server-side; the browser gets
-    // a generic message so infrastructure details never leak into the UI.
+    // A cap firing mid-stream is the caller's fault, not an unreachable backend —
+    // reporting it as 502 would invite endless retries of a body that will never fit.
+    if (overBodyCap) return jsonError(413, "Request body too large");
+    // Log the real cause (DNS, connection refused, or the timeout this handler's
+    // signal enforces) server-side; the browser gets a generic message so
+    // infrastructure details never leak into the UI.
     console.error(`[bff] upstream ${req.method} ${target.pathname} failed:`, err);
     return jsonError(502, "Backend unreachable");
   }
