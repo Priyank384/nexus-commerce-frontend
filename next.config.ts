@@ -83,7 +83,10 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
-    const base = process.env.API_BASE_URL;
+    // Trimmed for the same reason backendUrl() trims it: an operator pasting
+    // `https://api.example.com/` into the dashboard would otherwise produce a
+    // `//uploads/...` destination, which the backend answers 404.
+    const base = (process.env.API_BASE_URL ?? "").replace(/\/+$/, "");
     if (!base) return [];
     // Serve uploaded product images through the frontend origin so
     // <img src="/uploads/products/x.png"> works without the browser

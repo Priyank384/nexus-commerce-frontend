@@ -336,15 +336,118 @@ with the envelope — no endpoint returns 204.
 
 ## Deploy
 
-Vercel, with the Spring backend on Render (see the backend repo's `DEPLOYMENT.md`).
+Vercel, with the Spring backend on Render (see the backend repo's `DEPLOYMENT.md`). The full
+runbook — exact variable values, why no CORS entry is needed, how pushes auto-deploy, and the
+verification commands — is the section below.
 
-1. Import this repository into Vercel (framework preset **Next.js**, branch `main`).
-2. Set `API_BASE_URL` to the deployed API origin, `NEXT_IMAGE_HOSTS` to the Supabase Storage
-   public hostname (no scheme), `NEXT_PUBLIC_SITE_URL` to the canonical storefront origin
-   so canonicals, Open Graph and the sitemap point at the real domain, and
-   `NEXT_PUBLIC_SUPPORT_EMAIL` to the inbox `/contact` should publish — leave it unset and the
-   page says so plainly rather than inventing an address. Changing the image hosts
-   needs a redeploy — remote patterns are resolved at build time.
-3. Deploy. No backend secret lives in Vercel; the BFF cookie is httpOnly, `SameSite=Lax` and
-   `Secure` on HTTPS, and never leaves this origin. Security headers — including HSTS — are
-   emitted by `next.config.ts` and only take effect over HTTPS, which Vercel provides.
+Three things are worth knowing before you open the dashboard:
+
+1. Import the repo with framework preset **Next.js** on branch `main`. Vercel's Git integration is
+   what deploys every push; the GitHub Actions workflow in this repo does not deploy.
+2. `API_BASE_URL` is **server-only** and never ships to the browser. No backend secret belongs in
+   Vercel. The BFF cookie is httpOnly, `SameSite=Lax` and `Secure` on HTTPS, and never leaves this
+   origin.
+3. `NEXT_IMAGE_HOSTS` is resolved at **build** time, so changing it needs a redeploy. Security
+   headers, including HSTS, are emitted by `next.config.ts` and only take effect over HTTPS, which
+   Vercel provides.
+
+## Deploying to Vercel, step by step
+
+The topology this project ships against: **storefront on Vercel → Spring API on Render → Supabase
+PostgreSQL + Supabase Storage + Upstash Redis.** Vercel holds no database, no Redis and no Razorpay
+secret — those all belong to the backend service.
+
+### 1. Import the repository
+
+1. [vercel.com/new](https://vercel.com/new) → the GitHub app must be authorised on
+   `Priyank384/nexus-commerce-frontend`. If the repo is not listed, install the Vercel app on it
+   from **Settings → Integrations → GitHub Integrations → Configure → All repositories** or pick it
+   explicitly.
+2. Framework preset **Next.js**, Root Directory the repo root (it is a single Next app, not a
+   workspace, so leave Build/Output override fields empty), Branch **`main`**.
+3. Node version: **24**, matching `.github/workflows/ci.yml` and `package.json` (`engines.node`
+   is `>=20.9.0`).
+
+### 2. Environment variables
+
+Set every one of these for **Production and Preview** — a preview without `API_BASE_URL` builds
+fine and then 500s on the first catalogue read, because the var is only read at runtime.
+
+| Variable | Value | Environments |
+|----------|-------|--------------|
+| `API_BASE_URL` | `https://nexus-commerce-api-brg7.onrender.com` | Production + Preview |
+| `NEXT_IMAGE_HOSTS` | `yszqihpatohtcpatomjp.supabase.co` | Production + Preview |
+| `NEXT_PUBLIC_SITE_URL` | the storefront origin Vercel gives you, e.g. `https://<project>.vercel.app` | Production only |
+| `NEXT_PUBLIC_SUPPORT_EMAIL` | an inbox someone actually answers; leave unset and `/contact` says there is none | Production + Preview |
+
+`NEXT_PUBLIC_SITE_URL` is optional: `src/lib/site.ts` falls back to
+`VERCEL_PROJECT_PRODUCTION_URL`, which Vercel injects, so canonicals, Open Graph, `robots.ts` and
+the sitemap still resolve to the production origin without it.
+
+**There is no Razorpay key here.** Checkout loads its key id from the backend's payment ticket, so
+the merchant credential never reaches the browser bundle — which is also why the CSP in
+`next.config.ts` allows `https://checkout.razorpay.com` for scripts and frames but keeps
+`connect-src 'self'`.
+
+### 3. Why no CORS entry is needed
+
+Every browser request goes to the storefront's own origin and is forwarded by the BFF at
+`src/app/api/v1/[...path]` — `src/lib/api/client.ts` is hardcoded to `BASE_URL = "/"`, and the CSP's
+`connect-src 'self'` would block anything else. So the Render service is never called cross-origin by
+a shopper, and `CORS_ALLOWED_ORIGINS` on Render only matters if you point Swagger UI or a third-party
+client at the API.
+
+Preview deployments get a random `*.vercel.app` URL per push and need nothing extra for the same
+reason.
+
+### 4. Tell Render about the new origin
+
+Back in the Render dashboard, for the `nexus-commerce-api` service:
+
+- **`STOREFRONT_BASE_URL` = the Vercel origin.** This one is not cosmetic: `SmtpNotificationService`
+  builds the password-reset link and the order/claim links from it, so leaving it at
+  `http://localhost:3000` mails shoppers links to a machine that does not exist.
+- `CORS_ALLOWED_ORIGINS` — optional, per §3. Add the Vercel origin (and Render's own origin, which
+  is what Swagger UI posts from) only if you want direct API access.
+- Render auto-deploys the backend on push, so saving the change restarts the service; the free plan
+  then cold-starts in ~50 s, during which the storefront shows its own "couldn't reach the store"
+  boundary rather than a blank page.
+
+### 5. Automatic deploy on every push
+
+This comes free with the Git import in step 1 — there is nothing to script:
+
+- A push to **`main`** publishes a **production** deployment.
+- A push to any other branch, or a pull request, publishes a **preview** deployment on its own URL.
+- GitHub shows the result as a `Vercel` commit status, and **Deployments → Settings** controls
+  whether production builds on every push or only on success (recommended: leave
+  *Production commits → build and deploy* on, and add `npm test` gating in CI).
+
+Your existing `.github/workflows/ci.yml` (typecheck, lint, vitest, build) runs **in parallel** with
+Vercel — it does not deploy anything. If you want a red test suite to block a production release,
+turn on GitHub branch protection for `main` requiring that check, or set Vercel's
+*Production Branch* to build only after it passes.
+
+### 6. Verify the deployment
+
+```bash
+# storefront renders the live catalogue, not an error boundary
+curl -s https://<project>.vercel.app/ | grep -o "Merino Ribbed Tee" | head -1
+
+# the BFF reaches Render through the same origin
+curl -s -o /dev/null -w "%{http_code}\n" \
+  "https://<project>.vercel.app/api/v1/products/search?keyword=tee&size=1"
+
+# the Supabase image host is allowed (a non-allowlisted host is a 400 from next/image)
+curl -s -o /dev/null -w "%{http_code}\n" \
+  "https://<project>.vercel.app/_next/image?url=https%3A%2F%2Fyszqihpatohtcpatomjp.supabase.co%2Fstorage%2Fv1%2Fobject%2Fpublic%2Fnexus-commerce%2Fproducts%2Fany.png&w=640&q=75"
+```
+
+Then walk the golden path in the browser: register → sign in (the httpOnly cookie is first-party, so
+`SameSite=Lax` is enough) → add to bag → guest and signed-in checkout → order history → admin
+dashboard, and confirm a password-reset email arrives with a link on the Vercel domain.
+
+For a full browser pass against the deployed stack, point the Playwright suite at it —
+`API_BASE_URL=https://nexus-commerce-api-brg7.onrender.com npm run test:e2e` — remembering that the
+suite writes real rows (products, orders) into the database that backend is attached to.
+
