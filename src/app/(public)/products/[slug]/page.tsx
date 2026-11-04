@@ -2,6 +2,7 @@ import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { ProductPurchase } from "@/components/catalog/product-purchase";
 import { FOUR_UP_SIZES, ProductCard } from "@/components/catalog/product-card";
 import { ProductReviews } from "@/components/reviews/product-reviews";
@@ -14,8 +15,16 @@ type Params = Promise<{ slug: string }>;
 /**
  * generateMetadata and the page both need the product; React's cache folds that into one
  * upstream call per request instead of two.
+ *
+ * `connection()` lives here rather than in each caller because this is the read that needs a
+ * backend: without it Next prerenders the route template at build time, where there is no
+ * `API_BASE_URL` — CI has none, and a build must not depend on the deployed store. Metadata
+ * generation reaches the same loader, so one call marks both.
  */
-const loadProduct = cache((slug: string) => getProductBySlug(slug));
+const loadProduct = cache(async (slug: string) => {
+  await connection();
+  return getProductBySlug(slug);
+});
 
 async function loadOr404(slug: string) {
   const product = await loadProduct(slug);
@@ -54,9 +63,9 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 /**
- * The page awaits per-request data, so it has no instant static shell; `instant = false`
- * tells the Cache Components validator that blocking this segment is intentional. At runtime
- * the shell still streams, which is why a missing slug renders the 404 UI with a 200.
+ * `instant = false` tells the Cache Components validator that blocking this segment on a read is
+ * intentional; it is `connection()` in the loader above that keeps the read out of the build. The
+ * shell still streams at request time, which is why a missing slug renders the 404 UI with a 200.
  */
 export const instant = false;
 

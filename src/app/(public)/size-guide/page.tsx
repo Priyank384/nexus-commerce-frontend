@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import {
   Article,
   Bullet,
@@ -38,6 +39,10 @@ export const metadata: Metadata = {
 export const instant = false;
 
 export default async function SizeGuidePage() {
+  // This page reads, so it must not be prerendered: the build has no `API_BASE_URL` and must not
+  // reach the deployed store. `instant = false` only satisfies the Cache Components validator —
+  // `connection()` is what makes the route per-request. See the home page for the same pattern.
+  await connection();
   // A catalogue outage must not take an advice page down with it: the fallback is the ladder the
   // store actually sells, so the page degrades to slightly stale rather than to an error.
   const sold = await getFacetSizes().catch(() => []);
